@@ -708,6 +708,7 @@
       </div>
       <div class="collapsible" id="deadline-extras">
         <div class="collapsible-inner">
+          <div class="pill-group" id="date-quick-picks" style="margin-bottom:8px"></div>
           <div class="schedule-inputs">
             <input type="date" id="due-date">
             <input type="time" id="due-time">
@@ -1679,6 +1680,10 @@
       editMeta.className = 'edit-meta';
 
       // Schedule
+      const editQuickPicks = document.createElement('div');
+      editQuickPicks.className = 'pill-group';
+      editQuickPicks.style.marginBottom = '6px';
+
       const scheduleRow = document.createElement('div');
       scheduleRow.className = 'edit-schedule';
       const dateInput = document.createElement('input');
@@ -1686,7 +1691,11 @@
       const timeInput = document.createElement('input');
       timeInput.type = 'time'; timeInput.value = todo.dueTime || '';
       scheduleRow.append(dateInput, timeInput);
-      editMeta.appendChild(scheduleRow);
+
+      renderQuickPicks(editQuickPicks, dateInput);
+      dateInput.addEventListener('input', () => renderQuickPicks(editQuickPicks, dateInput));
+
+      editMeta.append(editQuickPicks, scheduleRow);
 
       // Priority
       const prioRow = document.createElement('div');
@@ -1968,6 +1977,7 @@
         });
         animateInId = id; save(todos); render(); animateInId = null;
         input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
+        renderQuickPicks(quickPicksEl, dueDateEl);
         notesTextarea.value = '';
         selectedCategories = []; selectedPriority = 'medium';
         selectedRepeat = 'none'; selectedRepeatDays = [];
@@ -2018,6 +2028,40 @@
 
     addBtn.addEventListener('click', addTask);
     input.addEventListener('keydown', e => { if (e.key === 'Enter' && !addBtn.disabled) addTask(); });
+
+    // ── Due date quick-picks ─────────────────────────────────────────────────
+
+    function toYMD(d) {
+      return d.toISOString().slice(0, 10);
+    }
+
+    const QUICK_PICKS = [
+      { label: 'Today',     offset: 0 },
+      { label: 'Tomorrow',  offset: 1 },
+      { label: 'Next week', offset: 7 },
+    ];
+
+    function renderQuickPicks(container, dateEl) {
+      container.innerHTML = '';
+      const today = new Date(); today.setHours(0,0,0,0);
+      QUICK_PICKS.forEach(({ label, offset }) => {
+        const d = new Date(today); d.setDate(d.getDate() + offset);
+        const ymd = toYMD(d);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pill' + (dateEl.value === ymd ? ' selected' : '');
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+          dateEl.value = ymd;
+          renderQuickPicks(container, dateEl);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    const quickPicksEl = document.getElementById('date-quick-picks');
+    renderQuickPicks(quickPicksEl, dueDateEl);
+    dueDateEl.addEventListener('input', () => renderQuickPicks(quickPicksEl, dueDateEl));
 
     const notesCounter = document.getElementById('notes-counter');
     function updateNotesCounter(ta, counterEl) {
