@@ -357,40 +357,117 @@
     /* ── Empty states ── */
     .empty { text-align: center; color: var(--muted); font-size: 0.95rem; padding: 56px 0; line-height: 1.6; }
     .empty strong { display: block; font-size: 1.15rem; color: var(--text); margin-bottom: 6px; font-weight: 600; }
+
+    /* ── Top todo card ── */
+    #top-todo-card {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 18px;
+      padding: 20px 22px 18px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #top-todo-card::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 130px; height: 130px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+    }
+
+    #top-todo-card::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; right: 20px;
+      width: 90px; height: 90px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+
+    .top-todo-eyebrow {
+      font-size: 0.68rem; font-weight: 800;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      opacity: 0.6; margin-bottom: 8px;
+    }
+
+    .top-todo-title {
+      font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      opacity: 0.55; margin-bottom: 10px;
+    }
+
+    .top-todo-text {
+      font-size: 1.25rem; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.02em;
+      word-break: break-word; margin-bottom: 10px;
+      position: relative; z-index: 1;
+    }
+
+    .top-todo-meta {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      position: relative; z-index: 1;
+    }
+
+    .top-todo-chip {
+      font-size: 0.72rem; font-weight: 600;
+      padding: 3px 9px; border-radius: 20px;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.02em;
+    }
+
+    .top-todo-chip.urgent { background: rgba(255,80,80,0.35); }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>Make it happen.</h1>
-      <p class="subtitle" id="stats">Every great day starts with a clear intention.</p>
+      <h1>You've got this.</h1>
+      <p class="subtitle" id="stats">A little progress each day adds up to something great.</p>
+    </div>
+
+    <div id="top-todo-card" style="display:none">
+      <div class="top-todo-eyebrow">Focus mode</div>
+      <div class="top-todo-title" id="top-todo-title">Do This Now</div>
+      <div class="top-todo-text" id="top-todo-text"></div>
+      <div class="top-todo-meta" id="top-todo-meta"></div>
     </div>
 
     <div class="input-area">
       <div class="input-row">
-        <input type="text" id="task-input" placeholder="What do you want to accomplish today?" maxlength="200" autocomplete="off">
+        <input type="text" id="task-input" placeholder="What would you like to get done today?" maxlength="200" autocomplete="off">
         <button id="add-btn" disabled>Add</button>
       </div>
-      <button class="section-toggle" id="details-toggle" type="button">
+      <button class="section-toggle" id="priority-toggle" type="button">
         <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        Deadline, priority &amp; category
+        Priority
       </button>
-      <div class="collapsible" id="form-extras">
+      <div class="collapsible" id="priority-extras">
         <div class="collapsible-inner">
-          <div class="form-row">
-            <span class="form-label">Priority</span>
-            <div class="pill-group" id="priority-picker"></div>
-          </div>
-          <div class="form-row">
-            <span class="form-label">Category</span>
-            <div class="pill-group" id="category-picker"></div>
-          </div>
-          <div class="form-row">
-            <span class="form-label">Deadline</span>
-            <div class="schedule-inputs">
-              <input type="date" id="due-date">
-              <input type="time" id="due-time">
-            </div>
+          <div class="pill-group" id="priority-picker"></div>
+        </div>
+      </div>
+      <button class="section-toggle" id="category-toggle" type="button">
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        Category
+      </button>
+      <div class="collapsible" id="category-extras">
+        <div class="collapsible-inner">
+          <div class="pill-group" id="category-picker"></div>
+        </div>
+      </div>
+      <button class="section-toggle" id="deadline-toggle" type="button">
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        Deadline
+      </button>
+      <div class="collapsible" id="deadline-extras">
+        <div class="collapsible-inner">
+          <div class="schedule-inputs">
+            <input type="date" id="due-date">
+            <input type="time" id="due-time">
           </div>
         </div>
       </div>
@@ -421,13 +498,21 @@
     const dueTimeEl     = document.getElementById('due-time');
     const catPickerEl   = document.getElementById('category-picker');
     const priPickerEl   = document.getElementById('priority-picker');
-    const detailsToggle = document.getElementById('details-toggle');
-    const formExtras    = document.getElementById('form-extras');
+    const priorityToggle  = document.getElementById('priority-toggle');
+    const priorityExtras  = document.getElementById('priority-extras');
+    const categoryToggle  = document.getElementById('category-toggle');
+    const categoryExtras  = document.getElementById('category-extras');
+    const deadlineToggle  = document.getElementById('deadline-toggle');
+    const deadlineExtras  = document.getElementById('deadline-extras');
     const filterSection = document.getElementById('filter-section');
     const filterToggle  = document.getElementById('filter-toggle');
     const filterCollapsible = document.getElementById('filter-collapsible');
     const filterBarEl   = document.getElementById('filter-bar');
     const filterBadge   = document.getElementById('filter-badge');
+    const topTodoCard   = document.getElementById('top-todo-card');
+    const topTodoTitle  = document.getElementById('top-todo-title');
+    const topTodoText   = document.getElementById('top-todo-text');
+    const topTodoMeta   = document.getElementById('top-todo-meta');
 
     const STORAGE_KEY     = 'cc_todos_v2';
     const CUSTOM_CATS_KEY = 'cc_custom_cats';
@@ -693,6 +778,56 @@
       return { active, done };
     }
 
+    // ── Top todo card ─────────────────────────────────────────────────────────
+
+    const FOCUS_TITLES = [
+      'You\'ve got this one.',
+      'Start here — you\'re ready.',
+      'One step at a time.',
+      'This one\'s yours to take.',
+      'You\'re closer than you think.',
+      'A little progress goes a long way.',
+      'Begin here — you can do it.',
+    ];
+
+    function renderTopTodo(active) {
+      if (!active || active.length === 0) {
+        topTodoCard.style.display = 'none';
+        return;
+      }
+
+      const todo = active[0];
+      const titleIdx = todo.id % FOCUS_TITLES.length;
+      topTodoTitle.textContent = FOCUS_TITLES[titleIdx];
+      topTodoText.textContent  = todo.text;
+      topTodoMeta.innerHTML    = '';
+
+      const priority = todo.priority || 'medium';
+      if (priority !== 'medium') {
+        const chip = document.createElement('span');
+        chip.className = 'top-todo-chip' + (priority === 'high' ? ' urgent' : '');
+        chip.textContent = PRIORITY_CONFIG[priority].label + ' priority';
+        topTodoMeta.appendChild(chip);
+      }
+
+      (todo.categories || []).forEach(cat => {
+        const chip = document.createElement('span');
+        chip.className = 'top-todo-chip';
+        chip.textContent = cat;
+        topTodoMeta.appendChild(chip);
+      });
+
+      const due = describeDue(todo.dueDate, todo.dueTime);
+      if (due) {
+        const chip = document.createElement('span');
+        chip.className = 'top-todo-chip' + (due.urgency !== 'ok' ? ' urgent' : '');
+        chip.textContent = due.label;
+        topTodoMeta.appendChild(chip);
+      }
+
+      topTodoCard.style.display = '';
+    }
+
     // ── Filter bar ────────────────────────────────────────────────────────────
 
     function renderFilterBar() {
@@ -800,19 +935,20 @@
       renderFilterBar();
       list.innerHTML = '';
       const { active, done } = getSorted();
+      renderTopTodo(active);
       const total = todos.length, completed = todos.filter(t => t.done).length;
 
       if (total === 0) {
         statsEl.textContent = 'Every great day starts with a clear intention.';
-        list.innerHTML = `<div class="empty"><strong>The slate is clean.</strong>What will you achieve today?</div>`;
+        list.innerHTML = `<div class="empty"><strong>All clear!</strong>Add something you'd like to get done today.</div>`;
         return;
       }
 
       statsEl.textContent = completed === total
-        ? `All ${total} goal${total > 1 ? 's' : ''} crushed. You're on fire.`
+        ? `All ${total} task${total > 1 ? 's' : ''} done. Well done today!`
         : completed === 0
-          ? `${total - completed} goal${total - completed > 1 ? 's' : ''} ready to conquer.`
-          : `${completed} of ${total} goals achieved. Keep going.`;
+          ? `${total - completed} task${total - completed > 1 ? 's' : ''} waiting for you. You've got this.`
+          : `${completed} of ${total} tasks done. Keep it up!`;
 
       if (active.length === 0 && done.length === 0 && activeFilterCount() > 0) {
         list.innerHTML = `<div class="empty"><strong>No matches.</strong>Try adjusting your filters.</div>`;
@@ -1079,14 +1215,17 @@
     }
 
     function collapseDetails() {
-      formExtras.classList.remove('open');
-      detailsToggle.classList.remove('open');
+      [priorityExtras, categoryExtras, deadlineExtras].forEach(el => el.classList.remove('open'));
+      [priorityToggle, categoryToggle, deadlineToggle].forEach(el => el.classList.remove('open'));
     }
 
-    detailsToggle.addEventListener('click', () => {
-      const open = formExtras.classList.toggle('open');
-      detailsToggle.classList.toggle('open', open);
-    });
+    [[priorityToggle, priorityExtras], [categoryToggle, categoryExtras], [deadlineToggle, deadlineExtras]]
+      .forEach(([toggle, panel]) => {
+        toggle.addEventListener('click', () => {
+          const open = panel.classList.toggle('open');
+          toggle.classList.toggle('open', open);
+        });
+      });
 
     // Filter toggle (collapsed by default)
     filterToggle.addEventListener('click', () => {
