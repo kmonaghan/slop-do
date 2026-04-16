@@ -1038,10 +1038,10 @@
 
     // ── Filter state ──────────────────────────────────────────────────────────
 
-    const filterState = { sortBy: 'date', filterCategory: null, filterPriority: null };
+    const filterState = { sortBy: 'date', filterCategories: [], filterPriority: null };
 
     function activeFilterCount() {
-      return (filterState.filterCategory ? 1 : 0) + (filterState.filterPriority ? 1 : 0);
+      return filterState.filterCategories.length + (filterState.filterPriority ? 1 : 0);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -1136,9 +1136,9 @@
       let active = todos.filter(t => !t.done);
       let done   = todos.filter(t => t.done);
 
-      if (filterState.filterCategory) {
-        active = active.filter(t => (t.categories || []).includes(filterState.filterCategory));
-        done   = done.filter(t => (t.categories || []).includes(filterState.filterCategory));
+      if (filterState.filterCategories.length > 0) {
+        active = active.filter(t => filterState.filterCategories.some(c => (t.categories || []).includes(c)));
+        done   = done.filter(t => filterState.filterCategories.some(c => (t.categories || []).includes(c)));
       }
       if (filterState.filterPriority) {
         active = active.filter(t => (t.priority || 'medium') === filterState.filterPriority);
@@ -1297,20 +1297,24 @@
         const catGroup = document.createElement('div');
         catGroup.className = 'filter-group';
         catGroup.innerHTML = '<span class="filter-label">Category</span>';
-        const sel = document.createElement('select');
-        sel.className = 'filter-select' + (filterState.filterCategory ? ' has-value' : '');
-        const allOpt = document.createElement('option');
-        allOpt.value = ''; allOpt.textContent = 'All';
-        sel.appendChild(allOpt);
         cats.forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat.name; opt.textContent = cat.name;
-          if (filterState.filterCategory === cat.name) opt.selected = true;
-          sel.appendChild(opt);
+          const active = filterState.filterCategories.includes(cat.name);
+          const p = document.createElement('button');
+          p.className = 'filter-pill' + (active ? ' active' : '');
+          p.textContent = cat.name;
+          if (active) {
+            p.style.background = cat.bg || '';
+            p.style.borderColor = cat.bg || '';
+            p.style.color = cat.text || '';
+          }
+          p.addEventListener('click', () => {
+            const idx = filterState.filterCategories.indexOf(cat.name);
+            if (idx === -1) filterState.filterCategories.push(cat.name);
+            else filterState.filterCategories.splice(idx, 1);
+            render();
+          });
+          catGroup.appendChild(p);
         });
-        sel.value = filterState.filterCategory || '';
-        sel.addEventListener('change', () => { filterState.filterCategory = sel.value || null; render(); });
-        catGroup.appendChild(sel);
         filterBarEl.appendChild(catGroup);
       }
 
@@ -1320,7 +1324,7 @@
         clearBtn.className = 'filter-clear';
         clearBtn.textContent = '× Clear filters';
         clearBtn.addEventListener('click', () => {
-          filterState.filterCategory = null;
+          filterState.filterCategories = [];
           filterState.filterPriority = null;
           render();
         });
@@ -1334,7 +1338,9 @@
       if (type === 'priority') {
         filterState.filterPriority = filterState.filterPriority === value ? null : value;
       } else {
-        filterState.filterCategory = filterState.filterCategory === value ? null : value;
+        const idx = filterState.filterCategories.indexOf(value);
+        if (idx === -1) filterState.filterCategories.push(value);
+        else filterState.filterCategories.splice(idx, 1);
       }
       // Expand the filter panel so the user can see what's active
       filterCollapsible.classList.add('open');
@@ -1447,7 +1453,7 @@
             const col = getCatColor(catName);
             tag.style.background = col.bg;
             tag.style.color = col.text;
-            tag.title = filterState.filterCategory === catName ? 'Clear category filter' : `Filter by ${catName}`;
+            tag.title = filterState.filterCategories.includes(catName) ? 'Remove category filter' : `Filter by ${catName}`;
             tag.addEventListener('click', e => { e.stopPropagation(); applyQuickFilter('category', catName); });
           }
           meta.appendChild(tag);
