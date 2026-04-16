@@ -1308,6 +1308,7 @@
     // ── Render ────────────────────────────────────────────────────────────────
 
     let animateInId = null;
+    const activeEdits = {};
 
     function render() {
       renderFilterBar();
@@ -1510,10 +1511,11 @@
     // ── Inline edit ───────────────────────────────────────────────────────────
 
     function startEdit(id) {
+      if (activeEdits[id]) { activeEdits[id](); return; }
       const todo = todos.find(t => t.id === id);
       if (!todo || todo.done) return;
       const item = document.querySelector(`.todo-item[data-id="${id}"]`);
-      if (!item || item.classList.contains('editing')) return;
+      if (!item) return;
       item.classList.add('editing');
 
       const content = item.querySelector('.todo-content');
@@ -1620,6 +1622,7 @@
       textInput.focus(); textInput.select();
 
       function commit() {
+        delete activeEdits[id];
         const newText = textInput.value.trim();
         if (!newText) { render(); return; }
         const newDate = dateInput.value || null;
@@ -1634,9 +1637,11 @@
         save(todos); render();
       }
 
+      activeEdits[id] = commit;
+
       const onKey = e => {
         if (e.key === 'Enter')  { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') render();
+        if (e.key === 'Escape') { delete activeEdits[id]; render(); }
       };
       textInput.addEventListener('keydown', onKey);
       [dateInput, timeInput].forEach(el => el.addEventListener('keydown', onKey));
