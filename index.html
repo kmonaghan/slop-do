@@ -1758,11 +1758,18 @@
       }
 
       if (dueDate) {
-        const newDt = new Date(dueDate + 'T' + (dueTime || '10:00')).getTime();
+        const newDt    = new Date(dueDate + 'T' + (dueTime || '10:00')).getTime();
+        const windowMs = 12 * 60 * 60 * 1000;
+        const dayMs    = 86400000;
         const conflicts = todos.filter(t => {
           if (t.done || !t.dueDate) return false;
           const tDt = new Date(t.dueDate + 'T' + (t.dueTime || '10:00')).getTime();
-          return Math.abs(tDt - newDt) <= 12 * 60 * 60 * 1000;
+          if (t.repeat === 'daily') {
+            // find nearest daily occurrence to newDt
+            const nearest = tDt + Math.round((newDt - tDt) / dayMs) * dayMs;
+            return Math.abs(nearest - newDt) <= windowMs;
+          }
+          return Math.abs(tDt - newDt) <= windowMs;
         });
         if (conflicts.length >= 4) { showOverloadWarning(conflicts, doAdd); return; }
       }
