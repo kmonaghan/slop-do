@@ -186,6 +186,15 @@
     input[type="time"] { min-width: 90px; }
     input[type="date"]:focus, input[type="time"]:focus { border-color: var(--accent); }
 
+    /* ── Repeat custom number input ── */
+    input[type="number"].repeat-n {
+      font-size: 0.85rem; padding: 6px 10px; width: 60px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; font-family: inherit;
+    }
+    input[type="number"].repeat-n:focus { border-color: var(--accent); }
+
     /* ── Filter section ── */
     .filter-section { margin-bottom: 16px; }
 
@@ -346,6 +355,27 @@
     .due-chip.soon  { color: var(--due-soon); background: #fff4e6; }
     .due-chip.over  { color: var(--due-over); background: #fff0f0; }
     .due-chip.faded { color: var(--done-text); background: transparent; padding: 2px 0; }
+
+    /* ── Day-of-week picker buttons ── */
+    .day-btn {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--muted);
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      font-family: inherit; flex-shrink: 0;
+    }
+    .day-btn.selected { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+    .day-btn:hover:not(.selected) { border-color: #ccc; color: var(--text); }
+
+    /* ── Repeat chip ── */
+    .repeat-chip {
+      display: inline-block; font-size: 0.72rem; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px;
+      background: #eef2ff; color: #4338ca; letter-spacing: 0.02em;
+    }
+    [data-theme="dark"] .repeat-chip { background: #1e1a3a; color: #a5b4fc; }
 
     /* ── Action buttons ── */
     .item-actions { display: flex; gap: 2px; flex-shrink: 0; margin-top: 1px; }
@@ -547,6 +577,10 @@
           <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           Deadline
         </button>
+        <button class="section-toggle" id="repeat-toggle" type="button">
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Repeat
+        </button>
       </div>
       <div class="collapsible" id="priority-extras">
         <div class="collapsible-inner">
@@ -564,6 +598,17 @@
             <input type="date" id="due-date">
             <input type="time" id="due-time">
           </div>
+        </div>
+      </div>
+      <div class="collapsible" id="repeat-extras">
+        <div class="collapsible-inner">
+          <div class="pill-group" id="repeat-picker"></div>
+          <div id="repeat-custom-row" style="display:none; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span class="form-label">Every</span>
+            <input type="number" class="repeat-n" id="repeat-interval" min="1" max="365" value="2">
+            <div class="pill-group" id="repeat-unit-picker"></div>
+          </div>
+          <div id="repeat-days-row" style="display:none; gap:4px; flex-wrap:wrap;"></div>
         </div>
       </div>
     </div>
@@ -618,6 +663,8 @@
     const categoryExtras  = document.getElementById('category-extras');
     const deadlineToggle  = document.getElementById('deadline-toggle');
     const deadlineExtras  = document.getElementById('deadline-extras');
+    const repeatToggle    = document.getElementById('repeat-toggle');
+    const repeatExtras    = document.getElementById('repeat-extras');
     const filterSection = document.getElementById('filter-section');
     const filterToggle  = document.getElementById('filter-toggle');
     const filterCollapsible = document.getElementById('filter-collapsible');
@@ -630,6 +677,50 @@
 
     const STORAGE_KEY     = 'cc_todos_v2';
     const CUSTOM_CATS_KEY = 'cc_custom_cats';
+
+    // ── Repeat config ─────────────────────────────────────────────────────────
+
+    const REPEAT_OPTIONS = [
+      { key: 'none',        label: 'None' },
+      { key: 'daily',       label: 'Daily' },
+      { key: 'weekly',      label: 'Weekly' },
+      { key: 'fortnightly', label: 'Fortnightly' },
+      { key: 'monthly',     label: 'Monthly' },
+      { key: 'weekdays',    label: 'Days of week' },
+      { key: 'custom',      label: 'Custom' },
+    ];
+    const REPEAT_UNITS  = ['days', 'weeks', 'months'];
+    const DAY_ABBR_LONG = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const DAY_ABBR_SHORT = ['S','M','T','W','T','F','S'];
+
+    let selectedRepeat         = 'none';
+    let selectedRepeatInterval = 2;
+    let selectedRepeatUnit     = 'weeks';
+    let selectedRepeatDays     = [];
+
+    function calcNextDate(repeat, interval, unit, days) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      if (repeat === 'daily')            d.setDate(d.getDate() + 1);
+      else if (repeat === 'weekly')      d.setDate(d.getDate() + 7);
+      else if (repeat === 'fortnightly') d.setDate(d.getDate() + 14);
+      else if (repeat === 'monthly')     d.setMonth(d.getMonth() + 1);
+      else if (repeat === 'weekdays') {
+        const targets = days && days.length ? days : [];
+        if (targets.length === 0) { d.setDate(d.getDate() + 1); }
+        else {
+          for (let i = 0; i < 7; i++) {
+            d.setDate(d.getDate() + 1);
+            if (targets.includes(d.getDay())) break;
+          }
+        }
+      } else if (repeat === 'custom') {
+        if (unit === 'weeks')       d.setDate(d.getDate() + interval * 7);
+        else if (unit === 'months') d.setMonth(d.getMonth() + interval);
+        else                        d.setDate(d.getDate() + interval);
+      }
+      return d.toISOString().slice(0, 10);
+    }
 
     // ── Priority ──────────────────────────────────────────────────────────────
 
@@ -766,6 +857,111 @@
       });
     }
 
+    // ── Repeat pickers ────────────────────────────────────────────────────────
+
+    function renderRepeatPicker(container, current, onSelect) {
+      container.innerHTML = '';
+      REPEAT_OPTIONS.forEach(({ key, label }) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill' + (current === key ? ' selected' : '');
+        pill.textContent = label;
+        if (current === key) {
+          pill.style.background = 'var(--accent)';
+          pill.style.color = 'var(--on-accent)';
+          pill.style.borderColor = 'transparent';
+        }
+        pill.addEventListener('click', () => onSelect(key));
+        container.appendChild(pill);
+      });
+    }
+
+    function renderDayPicker(container, current, onSelect) {
+      container.innerHTML = '';
+      DAY_ABBR_SHORT.forEach((abbr, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'day-btn' + (current.includes(i) ? ' selected' : '');
+        btn.textContent = abbr;
+        btn.title = DAY_ABBR_LONG[i];
+        btn.addEventListener('click', () => {
+          onSelect(current.includes(i)
+            ? current.filter(d => d !== i)
+            : [...current, i].sort((a, b) => a - b));
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderRepeatUnitPicker(container, current, onSelect) {
+      container.innerHTML = '';
+      REPEAT_UNITS.forEach(unit => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill' + (current === unit ? ' selected' : '');
+        pill.textContent = unit;
+        if (current === unit) {
+          pill.style.background = 'var(--accent)';
+          pill.style.color = 'var(--on-accent)';
+          pill.style.borderColor = 'transparent';
+        }
+        pill.addEventListener('click', () => onSelect(unit));
+        container.appendChild(pill);
+      });
+    }
+
+    function refreshRepeatUnitPicker() {
+      const unitPicker = document.getElementById('repeat-unit-picker');
+      if (!unitPicker) return;
+      renderRepeatUnitPicker(unitPicker, selectedRepeatUnit, val => {
+        selectedRepeatUnit = val;
+        refreshRepeatUnitPicker();
+      });
+    }
+
+    function refreshRepeatDayPicker() {
+      const daysRow = document.getElementById('repeat-days-row');
+      if (!daysRow) return;
+      renderDayPicker(daysRow, selectedRepeatDays, val => {
+        selectedRepeatDays = val;
+        refreshRepeatDayPicker();
+      });
+    }
+
+    function refreshRepeatPicker() {
+      const picker    = document.getElementById('repeat-picker');
+      const customRow = document.getElementById('repeat-custom-row');
+      const daysRow   = document.getElementById('repeat-days-row');
+      const nInput    = document.getElementById('repeat-interval');
+
+      renderRepeatPicker(picker, selectedRepeat, val => {
+        selectedRepeat = val;
+        if (val !== 'none') {
+          deadlineExtras.classList.add('open');
+          deadlineToggle.classList.add('open');
+        }
+        refreshRepeatPicker();
+      });
+
+      if (customRow) {
+        customRow.style.display = selectedRepeat === 'custom' ? 'flex' : 'none';
+        if (selectedRepeat === 'custom') {
+          if (nInput) {
+            nInput.value = selectedRepeatInterval;
+            nInput.oninput = () => {
+              selectedRepeatInterval = Math.max(1, parseInt(nInput.value) || 1);
+            };
+          }
+          refreshRepeatUnitPicker();
+        }
+      }
+
+      if (daysRow) {
+        daysRow.style.display = selectedRepeat === 'weekdays' ? 'flex' : 'none';
+        if (selectedRepeat === 'weekdays') refreshRepeatDayPicker();
+      }
+    }
+
     // ── Filter state ──────────────────────────────────────────────────────────
 
     const filterState = { sortBy: 'date', filterCategory: null, filterPriority: null };
@@ -819,6 +1015,18 @@
       return { label, urgency };
     }
 
+    function repeatLabel(todo) {
+      const map = { daily: '↻ Daily', weekly: '↻ Weekly', fortnightly: '↻ Fortnightly', monthly: '↻ Monthly' };
+      if (todo.repeat === 'weekdays') {
+        const days = todo.repeatDays || [];
+        if (days.length === 0) return '↻ Days of week';
+        if (days.length === 7) return '↻ Every day';
+        return '↻ ' + days.map(d => DAY_ABBR_LONG[d]).join(', ');
+      }
+      if (todo.repeat === 'custom') return `↻ Every ${todo.repeatInterval} ${todo.repeatUnit}`;
+      return map[todo.repeat] || '↻ Repeat';
+    }
+
     // ── Data ─────────────────────────────────────────────────────────────────
 
     function load() {
@@ -828,11 +1036,14 @@
 
     function save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
-    // Migrate old single-category field to array
     function migrate(t) {
       if (!Array.isArray(t.categories)) {
-        return { ...t, categories: t.category ? [t.category] : [], category: undefined };
+        t = { ...t, categories: t.category ? [t.category] : [], category: undefined };
       }
+      if (!('repeat' in t)) {
+        t = { ...t, repeat: null, repeatInterval: 2, repeatUnit: 'weeks', repeatCount: 0, repeatDays: [] };
+      }
+      if (!('repeatDays' in t)) t = { ...t, repeatDays: [] };
       return t;
     }
 
@@ -840,7 +1051,8 @@
 
     if (todos.length === 0) {
       todos = [{ id: Date.now(), text: 'Swipe left to delete', done: false,
-                 dueDate: null, dueTime: null, categories: [], priority: 'medium' }];
+                 dueDate: null, dueTime: null, categories: [], priority: 'medium',
+                 repeat: null, repeatInterval: 2, repeatUnit: 'weeks', repeatCount: 0, repeatDays: [] }];
       save(todos);
     }
 
@@ -936,6 +1148,13 @@
         const chip = document.createElement('span');
         chip.className = 'top-todo-chip' + (due.urgency !== 'ok' ? ' urgent' : '');
         chip.textContent = due.label;
+        topTodoMeta.appendChild(chip);
+      }
+
+      if (todo.repeat) {
+        const chip = document.createElement('span');
+        chip.className = 'top-todo-chip';
+        chip.textContent = repeatLabel(todo);
         topTodoMeta.appendChild(chip);
       }
 
@@ -1112,11 +1331,19 @@
       label.textContent = todo.text;
       content.appendChild(label);
 
-      const due       = describeDue(todo.dueDate, todo.dueTime);
-      const doneLabel = todo.done ? describeCompleted(todo.completedAt) : null;
-      const showPrio  = !todo.done && priority !== 'medium';
+      const due = describeDue(todo.dueDate, todo.dueTime);
 
-      if (showPrio || categories.length > 0 || due || doneLabel) {
+      // For repeat copies: show completion count; for regular done items: show date
+      const doneLabel = todo.done
+        ? (todo.completionCount
+            ? (todo.completionCount === 1 ? 'Completed once' : `Completed ${todo.completionCount}×`)
+            : describeCompleted(todo.completedAt))
+        : null;
+
+      const showPrio  = !todo.done && priority !== 'medium';
+      const showRepeat = !todo.done && todo.repeat;
+
+      if (showPrio || categories.length > 0 || due || doneLabel || showRepeat) {
         const meta = document.createElement('div');
         meta.className = 'todo-meta';
 
@@ -1147,6 +1374,13 @@
           const chip = document.createElement('span');
           chip.className = `due-chip ${due.urgency}`;
           chip.textContent = due.label;
+          meta.appendChild(chip);
+        }
+
+        if (showRepeat) {
+          const chip = document.createElement('span');
+          chip.className = 'repeat-chip';
+          chip.textContent = repeatLabel(todo);
           meta.appendChild(chip);
         }
 
@@ -1192,9 +1426,35 @@
       const item = document.querySelector(`.todo-item[data-id="${id}"]`);
       const wrap = item ? item.closest('.item-wrap') : null;
       const doIt = () => {
-        if (action === 'delete') todos = todos.filter(t => t.id !== id);
-        else todos = todos.map(t => t.id === id
-          ? { ...t, done: !t.done, completedAt: t.done ? null : Date.now() } : t);
+        if (action === 'delete') {
+          todos = todos.filter(t => t.id !== id);
+        } else {
+          const todo = todos.find(t => t.id === id);
+          if (todo && !todo.done && todo.repeat) {
+            const nextDate = calcNextDate(todo.repeat, todo.repeatInterval || 2, todo.repeatUnit || 'weeks', todo.repeatDays || []);
+            const newCount = (todo.repeatCount || 0) + 1;
+            todos = todos.map(t => t.id === id
+              ? { ...t, dueDate: nextDate, repeatCount: newCount } : t);
+            const existingCopy = todos.find(t => t.repeatGroupId === id);
+            if (existingCopy) {
+              todos = todos.map(t => t.repeatGroupId === id
+                ? { ...t, completionCount: (t.completionCount || 1) + 1, completedAt: Date.now() } : t);
+            } else {
+              todos.push({
+                ...todo,
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                done: true,
+                repeatGroupId: id,
+                completionCount: 1,
+                completedAt: Date.now(),
+                repeat: null,
+              });
+            }
+          } else {
+            todos = todos.map(t => t.id === id
+              ? { ...t, done: !t.done, completedAt: t.done ? null : Date.now() } : t);
+          }
+        }
         save(todos);
         render();
       };
@@ -1253,6 +1513,62 @@
       refreshEditCat();
       editMeta.appendChild(catRow);
 
+      // Repeat
+      const repeatRow = document.createElement('div');
+      repeatRow.style.cssText = 'display:flex; flex-direction:column; gap:6px;';
+      let editRepeat         = todo.repeat || 'none';
+      let editRepeatInterval = todo.repeatInterval || 2;
+      let editRepeatUnit     = todo.repeatUnit || 'weeks';
+      let editRepeatDays     = (todo.repeatDays || []).slice();
+
+      function refreshEditRepeatUnit(container) {
+        renderRepeatUnitPicker(container, editRepeatUnit, val => {
+          editRepeatUnit = val;
+          refreshEditRepeatUnit(container);
+        });
+      }
+
+      function refreshEditRepeat() {
+        repeatRow.innerHTML = '';
+        const pillRow = document.createElement('div');
+        pillRow.className = 'edit-pill-row';
+        renderRepeatPicker(pillRow, editRepeat, val => {
+          editRepeat = val;
+          refreshEditRepeat();
+        });
+        repeatRow.appendChild(pillRow);
+
+        if (editRepeat === 'custom') {
+          const customDiv = document.createElement('div');
+          customDiv.style.cssText = 'display:flex; gap:6px; align-items:center; flex-wrap:wrap;';
+          const lbl = document.createElement('span');
+          lbl.className = 'form-label'; lbl.textContent = 'Every';
+          const nInput = document.createElement('input');
+          nInput.type = 'number'; nInput.className = 'repeat-n';
+          nInput.min = '1'; nInput.max = '365'; nInput.value = editRepeatInterval;
+          nInput.oninput = () => { editRepeatInterval = Math.max(1, parseInt(nInput.value) || 1); };
+          const unitDiv = document.createElement('div');
+          unitDiv.className = 'pill-group';
+          refreshEditRepeatUnit(unitDiv);
+          customDiv.append(lbl, nInput, unitDiv);
+          repeatRow.appendChild(customDiv);
+        }
+        if (editRepeat === 'weekdays') {
+          const daysDiv = document.createElement('div');
+          daysDiv.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap;';
+          function refreshEditDays() {
+            renderDayPicker(daysDiv, editRepeatDays, val => {
+              editRepeatDays = val;
+              refreshEditDays();
+            });
+          }
+          refreshEditDays();
+          repeatRow.appendChild(daysDiv);
+        }
+      }
+      refreshEditRepeat();
+      editMeta.appendChild(repeatRow);
+
       if (metaEl) metaEl.replaceWith(editMeta);
       else content.appendChild(editMeta);
 
@@ -1265,7 +1581,10 @@
         todos = todos.map(t => t.id === id
           ? { ...t, text: newText, dueDate: newDate,
               dueTime: newDate ? (timeInput.value || '10:00') : null,
-              categories: editCategories, priority: editPriority }
+              categories: editCategories, priority: editPriority,
+              repeat: editRepeat !== 'none' ? editRepeat : null,
+              repeatInterval: editRepeatInterval, repeatUnit: editRepeatUnit,
+              repeatDays: editRepeatDays }
           : t);
         save(todos); render();
       }
@@ -1315,25 +1634,32 @@
       const text = input.value.trim();
       if (!text) return;
       const dueDate = dueDateEl.value || null;
+      const repeat  = selectedRepeat !== 'none' ? selectedRepeat : null;
       const id = Date.now();
-      todos.unshift({ id, text, done: false, dueDate,
-                      dueTime: dueDate ? (dueTimeEl.value || '10:00') : null,
-                      categories: selectedCategories.slice(), priority: selectedPriority });
+      todos.unshift({
+        id, text, done: false, dueDate,
+        dueTime: dueDate ? (dueTimeEl.value || '10:00') : null,
+        categories: selectedCategories.slice(), priority: selectedPriority,
+        repeat, repeatInterval: selectedRepeatInterval, repeatUnit: selectedRepeatUnit,
+        repeatDays: selectedRepeatDays.slice(), repeatCount: 0,
+      });
       animateInId = id; save(todos); render(); animateInId = null;
 
       input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
       selectedCategories = []; selectedPriority = 'medium';
-      refreshCategoryPicker(); refreshPriorityPicker();
+      selectedRepeat = 'none'; selectedRepeatDays = [];
+      refreshCategoryPicker(); refreshPriorityPicker(); refreshRepeatPicker();
       collapseDetails();
       addBtn.disabled = true; input.focus();
     }
 
     function collapseDetails() {
-      [priorityExtras, categoryExtras, deadlineExtras].forEach(el => el.classList.remove('open'));
-      [priorityToggle, categoryToggle, deadlineToggle].forEach(el => el.classList.remove('open'));
+      [priorityExtras, categoryExtras, deadlineExtras, repeatExtras].forEach(el => el.classList.remove('open'));
+      [priorityToggle, categoryToggle, deadlineToggle, repeatToggle].forEach(el => el.classList.remove('open'));
     }
 
-    [[priorityToggle, priorityExtras], [categoryToggle, categoryExtras], [deadlineToggle, deadlineExtras]]
+    [[priorityToggle, priorityExtras], [categoryToggle, categoryExtras],
+     [deadlineToggle, deadlineExtras], [repeatToggle, repeatExtras]]
       .forEach(([toggle, panel]) => {
         toggle.addEventListener('click', () => {
           const open = panel.classList.toggle('open');
@@ -1376,6 +1702,7 @@
 
     refreshPriorityPicker();
     refreshCategoryPicker();
+    refreshRepeatPicker();
     render();
   </script>
 </body>
