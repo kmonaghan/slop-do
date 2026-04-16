@@ -88,7 +88,7 @@
 
     button#add-btn {
       padding: 10px 18px; font-size: 0.95rem; font-weight: 600;
-      background: var(--accent); color: #fff; border: none;
+      background: var(--accent); color: var(--on-accent); border: none;
       border-radius: 10px; cursor: pointer;
       transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0;
     }
@@ -116,7 +116,7 @@
 
     .toggle-badge {
       font-size: 0.68rem; font-weight: 700;
-      background: var(--accent); color: #fff;
+      background: var(--accent); color: var(--on-accent);
       padding: 1px 6px; border-radius: 20px;
       letter-spacing: 0.02em;
     }
@@ -180,7 +180,10 @@
       border: 1.5px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
       outline: none; cursor: pointer; transition: border-color 0.15s; font-family: inherit;
+      color-scheme: light;
     }
+    [data-theme="dark"] input[type="date"],
+    [data-theme="dark"] input[type="time"] { color-scheme: dark; }
 
     input[type="date"] { flex: 1; min-width: 120px; }
     input[type="time"] { min-width: 90px; }
@@ -236,9 +239,9 @@
     }
 
     .filter-pill:hover { color: var(--text); border-color: #ccc; }
-    .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .filter-pill.active.fp-high { background: #dc2626; border-color: #dc2626; }
-    .filter-pill.active.fp-low  { background: #3b82f6; border-color: #3b82f6; }
+    .filter-pill.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .filter-pill.active.fp-high { background: #dc2626; border-color: #dc2626; color: #fff; }
+    .filter-pill.active.fp-low  { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 
     .filter-select {
       font-size: 0.75rem; font-weight: 600; font-family: inherit;
@@ -1545,11 +1548,11 @@
     }
 
     function completeFromCard(id) {
+      applyCompletion(id);
+      save(todos);
       launchConfetti(topTodoCard);
       topTodoCard.classList.add('card-exit');
       setTimeout(() => {
-        applyCompletion(id);
-        save(todos);
         topTodoCard.classList.remove('card-exit');
         render();
         if (topTodoCard.style.display !== 'none') {
