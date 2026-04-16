@@ -458,6 +458,41 @@
     .edit-schedule input[type="time"] { min-width: 88px; }
     .edit-pill-row { display: flex; flex-wrap: wrap; gap: 5px; }
 
+    .notes-snippet {
+      font-size: 0.8rem; color: var(--subtext); margin-top: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: default;
+    }
+    .top-todo-notes {
+      font-size: 0.82rem; color: var(--on-accent); opacity: 0.72;
+      margin-top: 6px; margin-bottom: 6px;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden; line-height: 1.45; position: relative; z-index: 1;
+      white-space: pre-wrap;
+    }
+    .notes-field { position: relative; }
+    .notes-counter {
+      display: block; text-align: right; font-size: 0.72rem;
+      color: var(--subtext); margin-top: 3px; transition: color 0.15s;
+    }
+    .notes-counter.near-limit { color: #dc2626; font-weight: 600; }
+    .edit-notes-input {
+      font-size: 0.875rem; font-family: inherit; width: 100%; resize: vertical;
+      min-height: 54px; max-height: 160px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); outline: none;
+      padding: 7px 10px; line-height: 1.45; transition: border-color 0.15s;
+    }
+    .edit-notes-input:focus { border-color: var(--accent); }
+    #notes-textarea {
+      font-size: 0.875rem; font-family: inherit; width: 100%; resize: vertical;
+      min-height: 60px; max-height: 160px; box-sizing: border-box;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); outline: none;
+      padding: 7px 10px; line-height: 1.45; transition: border-color 0.15s;
+    }
+    #notes-textarea:focus { border-color: var(--accent); }
+
     /* ── Section divider ── */
     .section-label {
       font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
@@ -629,6 +664,7 @@
       <div class="top-todo-eyebrow">Focus mode</div>
       <div class="top-todo-title" id="top-todo-title">Do This Now</div>
       <div class="top-todo-text" id="top-todo-text"></div>
+      <div class="top-todo-notes" id="top-todo-notes" style="display:none"></div>
       <div class="top-todo-meta" id="top-todo-meta"></div>
       <div id="top-todo-actions"></div>
     </div>
@@ -654,6 +690,10 @@
         <button class="section-toggle" id="repeat-toggle" type="button">
           <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           Repeat
+        </button>
+        <button class="section-toggle" id="notes-toggle" type="button">
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Notes
         </button>
       </div>
       <div class="collapsible" id="priority-extras">
@@ -683,6 +723,14 @@
             <div class="pill-group" id="repeat-unit-picker"></div>
           </div>
           <div id="repeat-days-row" style="display:none; gap:4px; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+      <div class="collapsible" id="notes-extras">
+        <div class="collapsible-inner">
+          <div class="notes-field">
+            <textarea id="notes-textarea" maxlength="1024" placeholder="Any extra context?"></textarea>
+            <span class="notes-counter" id="notes-counter">0 / 1024</span>
+          </div>
         </div>
       </div>
     </div>
@@ -739,6 +787,10 @@
     const deadlineExtras  = document.getElementById('deadline-extras');
     const repeatToggle    = document.getElementById('repeat-toggle');
     const repeatExtras    = document.getElementById('repeat-extras');
+    const notesToggle     = document.getElementById('notes-toggle');
+    const notesExtras     = document.getElementById('notes-extras');
+    const notesTextarea   = document.getElementById('notes-textarea');
+    const topTodoNotes    = document.getElementById('top-todo-notes');
     const filterSection = document.getElementById('filter-section');
     const filterToggle  = document.getElementById('filter-toggle');
     const filterCollapsible = document.getElementById('filter-collapsible');
@@ -1118,6 +1170,7 @@
         t = { ...t, repeat: null, repeatInterval: 2, repeatUnit: 'weeks', repeatCount: 0, repeatDays: [] };
       }
       if (!('repeatDays' in t)) t = { ...t, repeatDays: [] };
+      if (!('notes' in t)) t = { ...t, notes: '' };
       return t;
     }
 
@@ -1201,6 +1254,12 @@
       topTodoTitle.textContent = FOCUS_TITLES[titleIdx];
       topTodoText.textContent  = todo.text;
       topTodoMeta.innerHTML    = '';
+      if (todo.notes) {
+        topTodoNotes.textContent = todo.notes;
+        topTodoNotes.style.display = '';
+      } else {
+        topTodoNotes.style.display = 'none';
+      }
 
       const priority = todo.priority || 'medium';
       if (priority !== 'medium') {
@@ -1483,6 +1542,13 @@
         content.appendChild(meta);
       }
 
+      if (todo.notes && !todo.done) {
+        const snippet = document.createElement('div');
+        snippet.className = 'notes-snippet';
+        snippet.textContent = todo.notes.split('\n')[0];
+        content.appendChild(snippet);
+      }
+
       const actions = document.createElement('div');
       actions.className = 'item-actions';
 
@@ -1593,6 +1659,13 @@
       if (!item) return;
       item.classList.add('editing');
 
+      const editBtnEl = item.querySelector('.edit-btn');
+      if (editBtnEl) {
+        editBtnEl.setAttribute('aria-label', 'Save goal');
+        editBtnEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
+        editBtnEl.style.opacity = '1';
+      }
+
       const content = item.querySelector('.todo-content');
       const labelEl = item.querySelector('.todo-label');
       const metaEl  = item.querySelector('.todo-meta');
@@ -1691,6 +1764,21 @@
       refreshEditRepeat();
       editMeta.appendChild(repeatRow);
 
+      // Notes
+      const notesField = document.createElement('div');
+      notesField.className = 'notes-field';
+      const notesInput = document.createElement('textarea');
+      notesInput.className = 'edit-notes-input';
+      notesInput.maxLength = 1024;
+      notesInput.placeholder = 'Any extra context?';
+      notesInput.value = todo.notes || '';
+      const editNotesCounter = document.createElement('span');
+      editNotesCounter.className = 'notes-counter';
+      updateNotesCounter(notesInput, editNotesCounter);
+      notesInput.addEventListener('input', () => updateNotesCounter(notesInput, editNotesCounter));
+      notesField.append(notesInput, editNotesCounter);
+      editMeta.appendChild(notesField);
+
       if (metaEl) metaEl.replaceWith(editMeta);
       else content.appendChild(editMeta);
 
@@ -1707,7 +1795,7 @@
               categories: editCategories, priority: editPriority,
               repeat: editRepeat !== 'none' ? editRepeat : null,
               repeatInterval: editRepeatInterval, repeatUnit: editRepeatUnit,
-              repeatDays: editRepeatDays }
+              repeatDays: editRepeatDays, notes: notesInput.value.trim().slice(0, 1024) }
           : t);
         save(todos); render();
       }
@@ -1720,11 +1808,13 @@
       };
       textInput.addEventListener('keydown', onKey);
       [dateInput, timeInput].forEach(el => el.addEventListener('keydown', onKey));
+      notesInput.addEventListener('keydown', e => { if (e.key === 'Escape') { delete activeEdits[id]; render(); } });
 
       const onBlur = () => setTimeout(() => { if (!item.contains(document.activeElement)) commit(); }, 160);
       textInput.addEventListener('blur', onBlur);
       dateInput.addEventListener('blur', onBlur);
       timeInput.addEventListener('blur', onBlur);
+      notesInput.addEventListener('blur', onBlur);
     }
 
     // ── Swipe to delete ───────────────────────────────────────────────────────
@@ -1866,6 +1956,7 @@
       const dueDate = dueDateEl.value || null;
       const dueTime = dueDate ? (dueTimeEl.value || '10:00') : null;
       const repeat  = selectedRepeat !== 'none' ? selectedRepeat : null;
+      const notes   = notesTextarea.value.trim().slice(0, 1024);
 
       function doAdd() {
         const id = Date.now();
@@ -1873,10 +1964,11 @@
           id, text, done: false, dueDate, dueTime,
           categories: selectedCategories.slice(), priority: selectedPriority,
           repeat, repeatInterval: selectedRepeatInterval, repeatUnit: selectedRepeatUnit,
-          repeatDays: selectedRepeatDays.slice(), repeatCount: 0,
+          repeatDays: selectedRepeatDays.slice(), repeatCount: 0, notes,
         });
         animateInId = id; save(todos); render(); animateInId = null;
         input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
+        notesTextarea.value = '';
         selectedCategories = []; selectedPriority = 'medium';
         selectedRepeat = 'none'; selectedRepeatDays = [];
         refreshCategoryPicker(); refreshPriorityPicker(); refreshRepeatPicker();
@@ -1905,12 +1997,12 @@
     }
 
     function collapseDetails() {
-      [priorityExtras, categoryExtras, deadlineExtras, repeatExtras].forEach(el => el.classList.remove('open'));
-      [priorityToggle, categoryToggle, deadlineToggle, repeatToggle].forEach(el => el.classList.remove('open'));
+      [priorityExtras, categoryExtras, deadlineExtras, repeatExtras, notesExtras].forEach(el => el.classList.remove('open'));
+      [priorityToggle, categoryToggle, deadlineToggle, repeatToggle, notesToggle].forEach(el => el.classList.remove('open'));
     }
 
     [[priorityToggle, priorityExtras], [categoryToggle, categoryExtras],
-     [deadlineToggle, deadlineExtras], [repeatToggle, repeatExtras]]
+     [deadlineToggle, deadlineExtras], [repeatToggle, repeatExtras], [notesToggle, notesExtras]]
       .forEach(([toggle, panel]) => {
         toggle.addEventListener('click', () => {
           const open = panel.classList.toggle('open');
@@ -1926,6 +2018,14 @@
 
     addBtn.addEventListener('click', addTask);
     input.addEventListener('keydown', e => { if (e.key === 'Enter' && !addBtn.disabled) addTask(); });
+
+    const notesCounter = document.getElementById('notes-counter');
+    function updateNotesCounter(ta, counterEl) {
+      const len = ta.value.length;
+      counterEl.textContent = `${len} / 1024`;
+      counterEl.classList.toggle('near-limit', len > 900);
+    }
+    notesTextarea.addEventListener('input', () => updateNotesCounter(notesTextarea, notesCounter));
 
     // ── Debug mode ────────────────────────────────────────────────────────────
 
