@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Make it happen.</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f9f9f8;
+      --surface: #ffffff;
+      --border: #e8e8e6;
+      --text: #1a1a1a;
+      --muted: #aaa;
+      --accent: #1a1a1a;
+      --danger: #e53935;
+      --done-text: #c0c0bc;
+      --due-ok: #6b9e78;
+      --due-soon: #d4801a;
+      --due-over: #e53935;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: 52px 16px 48px;
+    }
+
+    .container { max-width: 480px; margin: 0 auto; }
+
+    /* ── Header ── */
+    .header { margin-bottom: 32px; }
+
+    h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── Input area ── */
+    .input-area {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 10px;
+      transition: border-color 0.15s;
+    }
+
+    .input-area:focus-within { border-color: var(--accent); }
+    .input-row { display: flex; gap: 10px; }
+
+    input[type="text"] {
+      flex: 1; padding: 10px 12px; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; min-width: 0;
+    }
+
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    button#add-btn {
+      padding: 10px 18px; font-size: 0.95rem; font-weight: 600;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0;
+    }
+
+    button#add-btn:disabled { opacity: 0.22; cursor: not-allowed; }
+    button#add-btn:not(:disabled):active { transform: scale(0.95); }
+
+    /* ── Collapsible toggle (shared by details + filter) ── */
+    .section-toggle {
+      display: flex; align-items: center; gap: 5px;
+      background: none; border: none; cursor: pointer;
+      font-size: 0.78rem; font-family: inherit; color: var(--muted);
+      padding: 7px 0; transition: color 0.15s; width: 100%;
+    }
+
+    .section-toggle:hover { color: var(--text); }
+    .section-toggle .chevron { transition: transform 0.22s ease; flex-shrink: 0; }
+    .section-toggle.open .chevron { transform: rotate(180deg); }
+
+    .toggle-badge {
+      font-size: 0.68rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      padding: 1px 6px; border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Collapsible panel ── */
+    .collapsible {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease; overflow: hidden;
+    }
+
+    .collapsible.open { grid-template-rows: 1fr; }
+
+    .collapsible-inner {
+      min-height: 0; overflow: hidden;
+      display: flex; flex-direction: column; gap: 10px;
+      padding-top: 0; transition: padding-top 0.25s ease;
+    }
+
+    .collapsible.open .collapsible-inner { padding-top: 12px; }
+
+    /* Filter panel sits flush against its toggle — no extra top gap needed */
+    .filter-section .collapsible-inner,
+    .filter-section .collapsible.open .collapsible-inner { padding-top: 0; }
+
+    /* ── Form rows ── */
+    .form-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .form-label {
+      font-size: 0.75rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      white-space: nowrap; min-width: 64px;
+    }
+
+    /* ── Pills (shared: category, priority, filter) ── */
+    .pill-group { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+
+    .pill {
+      font-size: 0.78rem; font-weight: 600; padding: 4px 11px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--muted);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s;
+      font-family: inherit; white-space: nowrap;
+    }
+
+    .pill:hover { border-color: #ccc; color: var(--text); }
+    .pill.selected { border-color: transparent; }
+    .pill.pill-add { border-style: dashed; }
+
+    .cat-new-input {
+      font-size: 0.8rem; font-family: inherit;
+      padding: 3px 10px; border: 1.5px solid var(--accent);
+      border-radius: 20px; outline: none; width: 120px;
+      background: var(--surface); color: var(--text);
+    }
+
+    /* ── Schedule ── */
+    .schedule-inputs { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+
+    input[type="date"], input[type="time"] {
+      font-size: 0.85rem; padding: 6px 10px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text);
+      outline: none; cursor: pointer; transition: border-color 0.15s; font-family: inherit;
+    }
+
+    input[type="date"] { flex: 1; min-width: 120px; }
+    input[type="time"] { min-width: 90px; }
+    input[type="date"]:focus, input[type="time"]:focus { border-color: var(--accent); }
+
+    /* ── Filter section ── */
+    .filter-section { margin-bottom: 16px; }
+
+    .filter-section-toggle {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-radius 0.22s ease;
+    }
+
+    .filter-section-toggle.open {
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom-color: transparent;
+    }
+
+    .filter-bar {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 12px 14px;
+      display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-start;
+    }
+
+    .filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .filter-label {
+      font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); white-space: nowrap;
+    }
+
+    .filter-pill {
+      font-size: 0.75rem; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--muted);
+      cursor: pointer; transition: all 0.15s; font-family: inherit; white-space: nowrap;
+    }
+
+    .filter-pill:hover { color: var(--text); border-color: #ccc; }
+    .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .filter-pill.active.fp-high { background: #dc2626; border-color: #dc2626; }
+    .filter-pill.active.fp-low  { background: #3b82f6; border-color: #3b82f6; }
+
+    .filter-select {
+      font-size: 0.75rem; font-weight: 600; font-family: inherit;
+      padding: 3px 26px 3px 10px;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background-color: var(--bg);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      appearance: none; color: var(--text); outline: none; cursor: pointer; transition: border-color 0.15s;
+    }
+
+    .filter-select:focus { border-color: var(--accent); }
+    .filter-select.has-value { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+    .filter-clear {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      background: none; border: none; cursor: pointer;
+      padding: 3px 6px; border-radius: 6px; font-family: inherit;
+      transition: color 0.15s; white-space: nowrap;
+    }
+
+    .filter-clear:hover { color: var(--danger); }
+
+    /* ── List ── */
+    #todo-list { display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── Item wrapper ── */
+    .item-wrap { position: relative; border-radius: var(--radius); overflow: hidden; }
+
+    .swipe-hint {
+      position: absolute; inset: 0; background: var(--danger);
+      display: flex; align-items: center; justify-content: flex-end; padding-right: 20px;
+      color: #fff; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; pointer-events: none; border-radius: var(--radius);
+    }
+
+    /* ── Animations ── */
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeToBottom {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(12px); }
+    }
+
+    .item-wrap.entering { animation: slideDown 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .item-wrap.exiting  { animation: fadeToBottom 0.26s ease forwards; pointer-events: none; }
+
+    /* ── Todo item ── */
+    .todo-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px; background: var(--surface);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      transition: transform 0.22s ease, opacity 0.22s ease;
+      will-change: transform; touch-action: pan-y; user-select: none;
+    }
+
+    .todo-item.priority-high { box-shadow: inset 3px 0 0 #ef4444; }
+    .todo-item.priority-low  { box-shadow: inset 3px 0 0 #93c5fd; }
+
+    .todo-item.done { background: var(--bg); border-color: transparent; box-shadow: none; }
+
+    /* ── Checkbox ── */
+    .todo-item input[type="checkbox"] {
+      appearance: none; width: 20px; height: 20px; min-width: 20px;
+      border: 1.5px solid var(--border); border-radius: 50%;
+      cursor: pointer; position: relative;
+      transition: background 0.15s, border-color 0.15s; margin-top: 2px;
+    }
+
+    .todo-item input[type="checkbox"]:checked { background: var(--done-text); border-color: var(--done-text); }
+
+    .todo-item input[type="checkbox"]:checked::after {
+      content: ''; position: absolute; left: 5px; top: 2px;
+      width: 6px; height: 10px; border: 2px solid #fff;
+      border-top: none; border-left: none; transform: rotate(45deg);
+    }
+
+    /* ── Content ── */
+    .todo-content { flex: 1; min-width: 0; }
+
+    .todo-label { font-size: 0.975rem; line-height: 1.4; transition: color 0.25s; word-break: break-word; }
+    .todo-item.done .todo-label { color: var(--done-text); text-decoration: line-through; }
+
+    /* ── Meta row ── */
+    .todo-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; align-items: center; }
+
+    .prio-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 7px; border-radius: 20px; letter-spacing: 0.03em;
+    }
+
+    .prio-badge.high { background: #fee2e2; color: #b91c1c; }
+    .prio-badge.low  { background: #eff6ff; color: #2563eb; }
+    .prio-badge:not(.faded) { cursor: pointer; }
+    .prio-badge:not(.faded):hover { filter: brightness(0.93); }
+
+    .cat-tag {
+      display: inline-block; font-size: 0.72rem; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px; letter-spacing: 0.02em;
+    }
+
+    .cat-tag:not(.faded) { cursor: pointer; }
+    .cat-tag:not(.faded):hover { filter: brightness(0.93); }
+    .cat-tag.faded { background: transparent !important; color: var(--done-text) !important; padding-left: 0; }
+
+    .due-chip {
+      display: inline-block; font-size: 0.75rem; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px; background: #f0f0ed; color: var(--due-ok);
+    }
+
+    .due-chip.soon  { color: var(--due-soon); background: #fff4e6; }
+    .due-chip.over  { color: var(--due-over); background: #fff0f0; }
+    .due-chip.faded { color: var(--done-text); background: transparent; padding: 2px 0; }
+
+    /* ── Action buttons ── */
+    .item-actions { display: flex; gap: 2px; flex-shrink: 0; margin-top: 1px; }
+
+    .edit-btn, .delete-btn {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      padding: 3px; border-radius: 6px; display: flex; align-items: center;
+      justify-content: center; transition: color 0.15s, background 0.15s, opacity 0.15s; opacity: 0;
+    }
+
+    .todo-item:hover .edit-btn,
+    .todo-item:hover .delete-btn,
+    .todo-item:focus-within .edit-btn,
+    .todo-item:focus-within .delete-btn { opacity: 0.45; }
+
+    .edit-btn:hover   { color: var(--accent); background: #f0f0ee; opacity: 1 !important; }
+    .delete-btn:hover { color: var(--danger);  background: #ffeaea; opacity: 1 !important; }
+
+    /* ── Editing ── */
+    .todo-item.editing { touch-action: none; user-select: text; }
+    .todo-item.editing .edit-btn { opacity: 1 !important; color: var(--accent); }
+
+    .edit-text-input {
+      font-size: 0.975rem; font-family: inherit; width: 100%;
+      border: none; border-bottom: 1.5px solid var(--accent);
+      background: transparent; color: var(--text); outline: none; padding: 0 0 3px; line-height: 1.4;
+    }
+
+    .edit-meta { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .edit-schedule { display: flex; gap: 6px; flex-wrap: wrap; }
+    .edit-schedule input[type="date"] { flex: 1; min-width: 110px; }
+    .edit-schedule input[type="time"] { min-width: 88px; }
+    .edit-pill-row { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    /* ── Section divider ── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted); padding: 8px 4px 4px;
+    }
+
+    /* ── Empty states ── */
+    .empty { text-align: center; color: var(--muted); font-size: 0.95rem; padding: 56px 0; line-height: 1.6; }
+    .empty strong { display: block; font-size: 1.15rem; color: var(--text); margin-bottom: 6px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Make it happen.</h1>
+      <p class="subtitle" id="stats">Every great day starts with a clear intention.</p>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <input type="text" id="task-input" placeholder="What do you want to accomplish today?" maxlength="200" autocomplete="off">
+        <button id="add-btn" disabled>Add</button>
+      </div>
+      <button class="section-toggle" id="details-toggle" type="button">
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        Deadline, priority &amp; category
+      </button>
+      <div class="collapsible" id="form-extras">
+        <div class="collapsible-inner">
+          <div class="form-row">
+            <span class="form-label">Priority</span>
+            <div class="pill-group" id="priority-picker"></div>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Category</span>
+            <div class="pill-group" id="category-picker"></div>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Deadline</span>
+            <div class="schedule-inputs">
+              <input type="date" id="due-date">
+              <input type="time" id="due-time">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-section" id="filter-section" style="display:none">
+      <button class="section-toggle filter-section-toggle" id="filter-toggle" type="button">
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        Sort &amp; filter
+        <span class="toggle-badge" id="filter-badge" style="display:none"></span>
+      </button>
+      <div class="collapsible" id="filter-collapsible">
+        <div class="collapsible-inner">
+          <div class="filter-bar" id="filter-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="todo-list"></div>
+  </div>
+
+  <script>
+    const input         = document.getElementById('task-input');
+    const addBtn        = document.getElementById('add-btn');
+    const list          = document.getElementById('todo-list');
+    const statsEl       = document.getElementById('stats');
+    const dueDateEl     = document.getElementById('due-date');
+    const dueTimeEl     = document.getElementById('due-time');
+    const catPickerEl   = document.getElementById('category-picker');
+    const priPickerEl   = document.getElementById('priority-picker');
+    const detailsToggle = document.getElementById('details-toggle');
+    const formExtras    = document.getElementById('form-extras');
+    const filterSection = document.getElementById('filter-section');
+    const filterToggle  = document.getElementById('filter-toggle');
+    const filterCollapsible = document.getElementById('filter-collapsible');
+    const filterBarEl   = document.getElementById('filter-bar');
+    const filterBadge   = document.getElementById('filter-badge');
+
+    const STORAGE_KEY     = 'cc_todos_v2';
+    const CUSTOM_CATS_KEY = 'cc_custom_cats';
+
+    // ── Priority ──────────────────────────────────────────────────────────────
+
+    const PRIORITY_CONFIG = {
+      high:   { label: 'High',   bg: '#fee2e2', text: '#b91c1c', weight: 0 },
+      medium: { label: 'Medium', bg: '#f1f5f9', text: '#64748b', weight: 1 },
+      low:    { label: 'Low',    bg: '#eff6ff', text: '#2563eb', weight: 2 },
+    };
+
+    let selectedPriority = 'medium';
+
+    function renderPriorityPicker(container, current, onSelect) {
+      container.innerHTML = '';
+      Object.entries(PRIORITY_CONFIG).forEach(([key, cfg]) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill' + (current === key ? ' selected' : '');
+        pill.textContent = cfg.label;
+        if (current === key) {
+          pill.style.background = cfg.bg;
+          pill.style.color = cfg.text;
+          pill.style.borderColor = 'transparent';
+        }
+        pill.addEventListener('click', () => onSelect(key));
+        container.appendChild(pill);
+      });
+    }
+
+    function refreshPriorityPicker() {
+      renderPriorityPicker(priPickerEl, selectedPriority, val => {
+        selectedPriority = val;
+        refreshPriorityPicker();
+      });
+    }
+
+    // ── Categories ────────────────────────────────────────────────────────────
+
+    const DEFAULT_CATEGORIES = [
+      { name: 'Work',     bg: '#dbeafe', text: '#1d4ed8' },
+      { name: 'Personal', bg: '#ede9fe', text: '#7c3aed' },
+      { name: 'Ideas',    bg: '#fef3c7', text: '#b45309' },
+      { name: 'Errands',  bg: '#d1fae5', text: '#065f46' },
+    ];
+
+    const CUSTOM_PALETTE = [
+      { bg: '#fce7f3', text: '#be185d' },
+      { bg: '#fee2e2', text: '#991b1b' },
+      { bg: '#e0f2fe', text: '#0369a1' },
+      { bg: '#fdf4ff', text: '#a21caf' },
+      { bg: '#fff7ed', text: '#c2410c' },
+      { bg: '#f0fdf4', text: '#166534' },
+    ];
+
+    function loadCustomCats() {
+      try { return JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY)) || []; }
+      catch { return []; }
+    }
+
+    function saveCustomCats() { localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(customCategories)); }
+
+    let customCategories = loadCustomCats();
+
+    function getAllCategories() {
+      return [
+        ...DEFAULT_CATEGORIES,
+        ...customCategories.map((name, i) => ({ name, ...CUSTOM_PALETTE[i % CUSTOM_PALETTE.length] })),
+      ];
+    }
+
+    function getCatColor(name) {
+      return getAllCategories().find(c => c.name === name) || { bg: '#f3f4f6', text: '#6b7280' };
+    }
+
+    // Multi-select: array of selected category names
+    let selectedCategories = [];
+
+    function renderCategoryPicker(container, current, onSelect) {
+      // current is an array of selected names; onSelect receives the new array
+      container.innerHTML = '';
+      getAllCategories().forEach(cat => {
+        const isSelected = current.includes(cat.name);
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill' + (isSelected ? ' selected' : '');
+        pill.textContent = cat.name;
+        if (isSelected) {
+          pill.style.background = cat.bg;
+          pill.style.color = cat.text;
+          pill.style.borderColor = 'transparent';
+        }
+        pill.addEventListener('click', () => {
+          onSelect(isSelected
+            ? current.filter(n => n !== cat.name)
+            : [...current, cat.name]);
+        });
+        container.appendChild(pill);
+      });
+
+      const addPill = document.createElement('button');
+      addPill.type = 'button';
+      addPill.className = 'pill pill-add';
+      addPill.textContent = '+ New';
+      addPill.addEventListener('click', () => {
+        addPill.style.display = 'none';
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.className = 'cat-new-input';
+        inp.placeholder = 'Category name…'; inp.maxLength = 30;
+        container.appendChild(inp);
+        inp.focus();
+
+        function confirmNew() {
+          const name = inp.value.trim();
+          if (name && !getAllCategories().find(c => c.name.toLowerCase() === name.toLowerCase())) {
+            customCategories.push(name);
+            saveCustomCats();
+          }
+          const match = getAllCategories().find(c => c.name.toLowerCase() === (name || '').toLowerCase());
+          onSelect(match && !current.includes(match.name) ? [...current, match.name] : current);
+        }
+
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter')  { e.preventDefault(); confirmNew(); }
+          if (e.key === 'Escape') onSelect(current);
+        });
+        inp.addEventListener('blur', () => setTimeout(confirmNew, 150));
+      });
+      container.appendChild(addPill);
+    }
+
+    function refreshCategoryPicker() {
+      renderCategoryPicker(catPickerEl, selectedCategories, val => {
+        selectedCategories = val;
+        refreshCategoryPicker();
+      });
+    }
+
+    // ── Filter state ──────────────────────────────────────────────────────────
+
+    const filterState = { sortBy: 'date', filterCategory: null, filterPriority: null };
+
+    function activeFilterCount() {
+      return (filterState.filterCategory ? 1 : 0) + (filterState.filterPriority ? 1 : 0);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function formatTime(h, m) {
+      return (m === 0 ? `${h % 12 || 12}` : `${h % 12 || 12}:${pad(m)}`) + (h >= 12 ? 'pm' : 'am');
+    }
+
+    const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function describeCompleted(ts) {
+      if (!ts) return null;
+      const now = new Date(), d = new Date(ts);
+      const diff = Math.round(
+        (new Date(now.getFullYear(), now.getMonth(), now.getDate()) -
+         new Date(d.getFullYear(),   d.getMonth(),   d.getDate())) / 86400000);
+      if (diff === 0) return 'Completed today';
+      if (diff === 1) return 'Completed yesterday';
+      if (diff <  7)  return `Completed ${DAYS[d.getDay()]}`;
+      return `Completed ${d.getDate()} ${MONTH[d.getMonth()]}`;
+    }
+
+    function describeDue(dateStr, timeStr) {
+      if (!dateStr) return null;
+      const et = timeStr || '10:00';
+      const [th, tm] = et.split(':').map(Number);
+      const due = new Date(dateStr + 'T' + et), now = new Date();
+      const diff = Math.round(
+        (new Date(due.getFullYear(), due.getMonth(), due.getDate()) -
+         new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+      const t = formatTime(th, tm);
+      let label, urgency;
+      if (diff < 0) {
+        label = diff === -1 ? 'Overdue · yesterday' : `Overdue · ${Math.abs(diff)} days ago`;
+        urgency = 'over';
+      } else if (diff === 0) {
+        label = `Today at ${t}`;
+        urgency = due < now ? 'over' : (due - now < 10800000 ? 'soon' : 'ok');
+      } else if (diff === 1) { label = `Tomorrow at ${t}`;                  urgency = 'ok'; }
+      else if (diff <  7)    { label = `${DAYS[due.getDay()]} at ${t}`;     urgency = 'ok'; }
+      else                   { label = `${due.getDate()} ${MONTH[due.getMonth()]} at ${t}`; urgency = 'ok'; }
+      return { label, urgency };
+    }
+
+    // ── Data ─────────────────────────────────────────────────────────────────
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
+    }
+
+    function save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+    // Migrate old single-category field to array
+    function migrate(t) {
+      if (!Array.isArray(t.categories)) {
+        return { ...t, categories: t.category ? [t.category] : [], category: undefined };
+      }
+      return t;
+    }
+
+    let todos = load().map(migrate);
+
+    if (todos.length === 0) {
+      todos = [{ id: Date.now(), text: 'Swipe left to delete', done: false,
+                 dueDate: null, dueTime: null, categories: [], priority: 'medium' }];
+      save(todos);
+    }
+
+    // ── Sorting & filtering ───────────────────────────────────────────────────
+
+    function getSorted() {
+      let active = todos.filter(t => !t.done);
+      let done   = todos.filter(t => t.done);
+
+      if (filterState.filterCategory) {
+        active = active.filter(t => (t.categories || []).includes(filterState.filterCategory));
+        done   = done.filter(t => (t.categories || []).includes(filterState.filterCategory));
+      }
+      if (filterState.filterPriority) {
+        active = active.filter(t => (t.priority || 'medium') === filterState.filterPriority);
+        done   = done.filter(t => (t.priority || 'medium') === filterState.filterPriority);
+      }
+
+      function cmp(a, b) {
+        const pa = PRIORITY_CONFIG[a.priority || 'medium'].weight;
+        const pb = PRIORITY_CONFIG[b.priority || 'medium'].weight;
+        const da = a.dueDate ? new Date(a.dueDate + 'T' + (a.dueTime || '10:00')) : null;
+        const db = b.dueDate ? new Date(b.dueDate + 'T' + (b.dueTime || '10:00')) : null;
+
+        if (filterState.sortBy === 'priority') {
+          if (pa !== pb) return pa - pb;
+          if (da && db) return da - db;
+          return da ? -1 : db ? 1 : 0;
+        }
+
+        if (filterState.sortBy === 'category') {
+          const ca = ((a.categories || [])[0] || '').toLowerCase();
+          const cb = ((b.categories || [])[0] || '').toLowerCase();
+          if (!ca && cb) return 1;
+          if (ca && !cb) return -1;
+          if (ca !== cb) return ca.localeCompare(cb);
+          if (pa !== pb) return pa - pb;
+          if (da && db) return da - db;
+          return 0;
+        }
+
+        // date (default)
+        if (da && db) { const d = da - db; return d !== 0 ? d : pa - pb; }
+        if (da) return -1; if (db) return 1;
+        return pa - pb;
+      }
+
+      active.sort(cmp);
+      return { active, done };
+    }
+
+    // ── Filter bar ────────────────────────────────────────────────────────────
+
+    function renderFilterBar() {
+      const hasTodos = todos.length > 0;
+      filterSection.style.display = hasTodos ? '' : 'none';
+      if (!hasTodos) return;
+
+      // Update badge
+      const count = activeFilterCount();
+      filterBadge.textContent = count;
+      filterBadge.style.display = count > 0 ? '' : 'none';
+
+      filterBarEl.innerHTML = '';
+
+      // Sort group
+      const sortGroup = document.createElement('div');
+      sortGroup.className = 'filter-group';
+      sortGroup.innerHTML = '<span class="filter-label">Sort</span>';
+      [['date','Date'],['priority','Priority'],['category','Category']].forEach(([val, label]) => {
+        const p = document.createElement('button');
+        p.className = 'filter-pill' + (filterState.sortBy === val ? ' active' : '');
+        p.textContent = label;
+        p.addEventListener('click', () => { filterState.sortBy = val; render(); });
+        sortGroup.appendChild(p);
+      });
+      filterBarEl.appendChild(sortGroup);
+
+      // Priority filter
+      const prioGroup = document.createElement('div');
+      prioGroup.className = 'filter-group';
+      prioGroup.innerHTML = '<span class="filter-label">Priority</span>';
+      const allP = document.createElement('button');
+      allP.className = 'filter-pill' + (!filterState.filterPriority ? ' active' : '');
+      allP.textContent = 'All';
+      allP.addEventListener('click', () => { filterState.filterPriority = null; render(); });
+      prioGroup.appendChild(allP);
+      Object.entries(PRIORITY_CONFIG).forEach(([key, cfg]) => {
+        const p = document.createElement('button');
+        p.className = `filter-pill fp-${key}` + (filterState.filterPriority === key ? ' active' : '');
+        p.textContent = cfg.label;
+        p.addEventListener('click', () => {
+          filterState.filterPriority = filterState.filterPriority === key ? null : key;
+          render();
+        });
+        prioGroup.appendChild(p);
+      });
+      filterBarEl.appendChild(prioGroup);
+
+      // Category filter
+      const cats = getAllCategories();
+      if (cats.length > 0) {
+        const catGroup = document.createElement('div');
+        catGroup.className = 'filter-group';
+        catGroup.innerHTML = '<span class="filter-label">Category</span>';
+        const sel = document.createElement('select');
+        sel.className = 'filter-select' + (filterState.filterCategory ? ' has-value' : '');
+        const allOpt = document.createElement('option');
+        allOpt.value = ''; allOpt.textContent = 'All';
+        sel.appendChild(allOpt);
+        cats.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.name; opt.textContent = cat.name;
+          if (filterState.filterCategory === cat.name) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.value = filterState.filterCategory || '';
+        sel.addEventListener('change', () => { filterState.filterCategory = sel.value || null; render(); });
+        catGroup.appendChild(sel);
+        filterBarEl.appendChild(catGroup);
+      }
+
+      // Clear
+      if (count > 0) {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'filter-clear';
+        clearBtn.textContent = '× Clear filters';
+        clearBtn.addEventListener('click', () => {
+          filterState.filterCategory = null;
+          filterState.filterPriority = null;
+          render();
+        });
+        filterBarEl.appendChild(clearBtn);
+      }
+    }
+
+    // ── Quick-filter from item tags ───────────────────────────────────────────
+
+    function applyQuickFilter(type, value) {
+      if (type === 'priority') {
+        filterState.filterPriority = filterState.filterPriority === value ? null : value;
+      } else {
+        filterState.filterCategory = filterState.filterCategory === value ? null : value;
+      }
+      // Expand the filter panel so the user can see what's active
+      filterCollapsible.classList.add('open');
+      filterToggle.classList.add('open');
+      render();
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    let animateInId = null;
+
+    function render() {
+      renderFilterBar();
+      list.innerHTML = '';
+      const { active, done } = getSorted();
+      const total = todos.length, completed = todos.filter(t => t.done).length;
+
+      if (total === 0) {
+        statsEl.textContent = 'Every great day starts with a clear intention.';
+        list.innerHTML = `<div class="empty"><strong>The slate is clean.</strong>What will you achieve today?</div>`;
+        return;
+      }
+
+      statsEl.textContent = completed === total
+        ? `All ${total} goal${total > 1 ? 's' : ''} crushed. You're on fire.`
+        : completed === 0
+          ? `${total - completed} goal${total - completed > 1 ? 's' : ''} ready to conquer.`
+          : `${completed} of ${total} goals achieved. Keep going.`;
+
+      if (active.length === 0 && done.length === 0 && activeFilterCount() > 0) {
+        list.innerHTML = `<div class="empty"><strong>No matches.</strong>Try adjusting your filters.</div>`;
+        return;
+      }
+
+      active.forEach(t => list.appendChild(makeWrap(t)));
+
+      if (done.length > 0) {
+        if (active.length > 0) {
+          const div = document.createElement('div');
+          div.className = 'section-label';
+          div.textContent = 'Accomplished';
+          list.appendChild(div);
+        }
+        done.forEach(t => list.appendChild(makeWrap(t)));
+      }
+    }
+
+    // ── Make item ─────────────────────────────────────────────────────────────
+
+    function makeWrap(todo) {
+      const priority   = todo.priority || 'medium';
+      const categories = todo.categories || [];
+
+      const wrap = document.createElement('div');
+      wrap.className = 'item-wrap';
+      if (todo.id === animateInId) wrap.classList.add('entering');
+
+      const hint = document.createElement('div');
+      hint.className = 'swipe-hint';
+      hint.textContent = 'Let it go';
+
+      const item = document.createElement('div');
+      item.className = `todo-item${todo.done ? ' done' : ` priority-${priority}`}`;
+      item.dataset.id = todo.id;
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.checked = todo.done;
+      checkbox.addEventListener('change', () => animateOut(todo.id, 'complete'));
+
+      const content = document.createElement('div');
+      content.className = 'todo-content';
+
+      const label = document.createElement('div');
+      label.className = 'todo-label';
+      label.textContent = todo.text;
+      content.appendChild(label);
+
+      const due       = describeDue(todo.dueDate, todo.dueTime);
+      const doneLabel = todo.done ? describeCompleted(todo.completedAt) : null;
+      const showPrio  = !todo.done && priority !== 'medium';
+
+      if (showPrio || categories.length > 0 || due || doneLabel) {
+        const meta = document.createElement('div');
+        meta.className = 'todo-meta';
+
+        if (showPrio) {
+          const badge = document.createElement('span');
+          badge.className = `prio-badge ${priority}`;
+          badge.textContent = PRIORITY_CONFIG[priority].label;
+          badge.title = filterState.filterPriority === priority ? 'Clear priority filter' : `Filter by ${PRIORITY_CONFIG[priority].label}`;
+          badge.addEventListener('click', e => { e.stopPropagation(); applyQuickFilter('priority', priority); });
+          meta.appendChild(badge);
+        }
+
+        categories.forEach(catName => {
+          const tag = document.createElement('span');
+          tag.className = 'cat-tag' + (todo.done ? ' faded' : '');
+          tag.textContent = catName;
+          if (!todo.done) {
+            const col = getCatColor(catName);
+            tag.style.background = col.bg;
+            tag.style.color = col.text;
+            tag.title = filterState.filterCategory === catName ? 'Clear category filter' : `Filter by ${catName}`;
+            tag.addEventListener('click', e => { e.stopPropagation(); applyQuickFilter('category', catName); });
+          }
+          meta.appendChild(tag);
+        });
+
+        if (due && !todo.done) {
+          const chip = document.createElement('span');
+          chip.className = `due-chip ${due.urgency}`;
+          chip.textContent = due.label;
+          meta.appendChild(chip);
+        }
+
+        if (doneLabel) {
+          const chip = document.createElement('span');
+          chip.className = 'due-chip faded';
+          chip.textContent = doneLabel;
+          meta.appendChild(chip);
+        }
+
+        content.appendChild(meta);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+
+      if (!todo.done) {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn'; editBtn.setAttribute('aria-label', 'Edit goal');
+        editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        editBtn.addEventListener('click', () => startEdit(todo.id));
+        actions.appendChild(editBtn);
+
+        label.style.cursor = 'text';
+        label.addEventListener('click', () => startEdit(todo.id));
+      }
+
+      const del = document.createElement('button');
+      del.className = 'delete-btn'; del.setAttribute('aria-label', 'Remove goal');
+      del.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+      del.addEventListener('click', () => animateOut(todo.id, 'delete'));
+      actions.appendChild(del);
+
+      item.append(checkbox, content, actions);
+      wrap.append(hint, item);
+      attachSwipe(item, wrap, todo.id);
+      return wrap;
+    }
+
+    // ── Animated exit ─────────────────────────────────────────────────────────
+
+    function animateOut(id, action) {
+      const item = document.querySelector(`.todo-item[data-id="${id}"]`);
+      const wrap = item ? item.closest('.item-wrap') : null;
+      const doIt = () => {
+        if (action === 'delete') todos = todos.filter(t => t.id !== id);
+        else todos = todos.map(t => t.id === id
+          ? { ...t, done: !t.done, completedAt: t.done ? null : Date.now() } : t);
+        save(todos);
+        render();
+      };
+      if (wrap) { wrap.classList.add('exiting'); wrap.addEventListener('animationend', doIt, { once: true }); }
+      else doIt();
+    }
+
+    // ── Inline edit ───────────────────────────────────────────────────────────
+
+    function startEdit(id) {
+      const todo = todos.find(t => t.id === id);
+      if (!todo || todo.done) return;
+      const item = document.querySelector(`.todo-item[data-id="${id}"]`);
+      if (!item || item.classList.contains('editing')) return;
+      item.classList.add('editing');
+
+      const content = item.querySelector('.todo-content');
+      const labelEl = item.querySelector('.todo-label');
+      const metaEl  = item.querySelector('.todo-meta');
+
+      const textInput = document.createElement('input');
+      textInput.type = 'text'; textInput.className = 'edit-text-input';
+      textInput.value = todo.text; textInput.maxLength = 200;
+      labelEl.replaceWith(textInput);
+
+      const editMeta = document.createElement('div');
+      editMeta.className = 'edit-meta';
+
+      // Schedule
+      const scheduleRow = document.createElement('div');
+      scheduleRow.className = 'edit-schedule';
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date'; dateInput.value = todo.dueDate || '';
+      const timeInput = document.createElement('input');
+      timeInput.type = 'time'; timeInput.value = todo.dueTime || '';
+      scheduleRow.append(dateInput, timeInput);
+      editMeta.appendChild(scheduleRow);
+
+      // Priority
+      const prioRow = document.createElement('div');
+      prioRow.className = 'edit-pill-row';
+      let editPriority = todo.priority || 'medium';
+      function refreshEditPrio() {
+        renderPriorityPicker(prioRow, editPriority, val => { editPriority = val; refreshEditPrio(); });
+      }
+      refreshEditPrio();
+      editMeta.appendChild(prioRow);
+
+      // Category (multi-select)
+      const catRow = document.createElement('div');
+      catRow.className = 'edit-pill-row';
+      let editCategories = (todo.categories || []).slice();
+      function refreshEditCat() {
+        renderCategoryPicker(catRow, editCategories, val => { editCategories = val; refreshEditCat(); });
+      }
+      refreshEditCat();
+      editMeta.appendChild(catRow);
+
+      if (metaEl) metaEl.replaceWith(editMeta);
+      else content.appendChild(editMeta);
+
+      textInput.focus(); textInput.select();
+
+      function commit() {
+        const newText = textInput.value.trim();
+        if (!newText) { render(); return; }
+        const newDate = dateInput.value || null;
+        todos = todos.map(t => t.id === id
+          ? { ...t, text: newText, dueDate: newDate,
+              dueTime: newDate ? (timeInput.value || '10:00') : null,
+              categories: editCategories, priority: editPriority }
+          : t);
+        save(todos); render();
+      }
+
+      const onKey = e => {
+        if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') render();
+      };
+      textInput.addEventListener('keydown', onKey);
+      [dateInput, timeInput].forEach(el => el.addEventListener('keydown', onKey));
+
+      const onBlur = () => setTimeout(() => { if (!item.contains(document.activeElement)) commit(); }, 160);
+      textInput.addEventListener('blur', onBlur);
+      dateInput.addEventListener('blur', onBlur);
+      timeInput.addEventListener('blur', onBlur);
+    }
+
+    // ── Swipe to delete ───────────────────────────────────────────────────────
+
+    function attachSwipe(item, wrap, id) {
+      let startX = 0, currentX = 0, dragging = false;
+      item.addEventListener('touchstart', e => {
+        if (item.classList.contains('editing')) return;
+        startX = e.touches[0].clientX; dragging = true; item.style.transition = 'none';
+      }, { passive: true });
+      item.addEventListener('touchmove', e => {
+        if (!dragging) return;
+        currentX = e.touches[0].clientX - startX;
+        if (currentX < 0) item.style.transform = `translateX(${currentX}px)`;
+      }, { passive: true });
+      item.addEventListener('touchend', () => {
+        if (!dragging) return;
+        dragging = false; item.style.transition = '';
+        if (currentX < -80) {
+          item.style.transform = 'translateX(-100%)'; item.style.opacity = '0';
+          setTimeout(() => { todos = todos.filter(t => t.id !== id); save(todos); render(); }, 240);
+        } else { item.style.transform = ''; }
+        currentX = 0;
+      });
+    }
+
+    // ── Form events ───────────────────────────────────────────────────────────
+
+    input.addEventListener('input', () => { addBtn.disabled = input.value.trim() === ''; });
+
+    function addTask() {
+      const text = input.value.trim();
+      if (!text) return;
+      const dueDate = dueDateEl.value || null;
+      const id = Date.now();
+      todos.unshift({ id, text, done: false, dueDate,
+                      dueTime: dueDate ? (dueTimeEl.value || '10:00') : null,
+                      categories: selectedCategories.slice(), priority: selectedPriority });
+      animateInId = id; save(todos); render(); animateInId = null;
+
+      input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
+      selectedCategories = []; selectedPriority = 'medium';
+      refreshCategoryPicker(); refreshPriorityPicker();
+      collapseDetails();
+      addBtn.disabled = true; input.focus();
+    }
+
+    function collapseDetails() {
+      formExtras.classList.remove('open');
+      detailsToggle.classList.remove('open');
+    }
+
+    detailsToggle.addEventListener('click', () => {
+      const open = formExtras.classList.toggle('open');
+      detailsToggle.classList.toggle('open', open);
+    });
+
+    // Filter toggle (collapsed by default)
+    filterToggle.addEventListener('click', () => {
+      const open = filterCollapsible.classList.toggle('open');
+      filterToggle.classList.toggle('open', open);
+    });
+
+    addBtn.addEventListener('click', addTask);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !addBtn.disabled) addTask(); });
+
+    // ── Debug mode ────────────────────────────────────────────────────────────
+
+    if (new URLSearchParams(location.search).has('debug')) {
+      const resetBtn = document.createElement('button');
+      resetBtn.textContent = 'Reset';
+      resetBtn.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        padding: 8px 16px; font-size: 0.8rem; font-weight: 700; font-family: inherit;
+        background: var(--danger); color: #fff; border: none; border-radius: 8px;
+        cursor: pointer; opacity: 0.85; transition: opacity 0.15s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      resetBtn.addEventListener('mouseenter', () => resetBtn.style.opacity = '1');
+      resetBtn.addEventListener('mouseleave', () => resetBtn.style.opacity = '0.85');
+      resetBtn.addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(CUSTOM_CATS_KEY);
+        location.href = location.pathname;
+      });
+      document.body.appendChild(resetBtn);
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    refreshPriorityPicker();
+    refreshCategoryPicker();
+    render();
+  </script>
+</body>
+</html>
