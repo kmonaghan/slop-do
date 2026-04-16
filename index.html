@@ -14,12 +14,38 @@
       --text: #1a1a1a;
       --muted: #aaa;
       --accent: #1a1a1a;
+      --on-accent: #ffffff;
       --danger: #e53935;
       --done-text: #c0c0bc;
       --due-ok: #6b9e78;
       --due-soon: #d4801a;
       --due-over: #e53935;
       --radius: 12px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #111110;
+      --surface: #1c1c1a;
+      --border: #2e2e2c;
+      --text: #f0f0ee;
+      --muted: #66665e;
+      --accent: #f0f0ee;
+      --on-accent: #111110;
+      --danger: #f87171;
+      --done-text: #3a3a38;
+      --due-ok: #6b9e78;
+      --due-soon: #d4801a;
+      --due-over: #f87171;
+    }
+
+    body, .container, .header, .input-area, .todo-item, .item-wrap,
+    .filter-section, .filter-bar, .filter-section-toggle,
+    #top-todo-card, .top-todo-chip,
+    input[type="text"], input[type="date"], input[type="time"],
+    .pill, .filter-pill, .filter-select, .cat-tag, .prio-badge, .due-chip,
+    .section-label, .theme-slider, .theme-slider::before {
+      transition: background-color 0.3s ease, border-color 0.3s ease,
+                  color 0.3s ease, box-shadow 0.3s ease;
     }
 
     body {
@@ -71,12 +97,18 @@
     button#add-btn:not(:disabled):active { transform: scale(0.95); }
 
     /* ── Collapsible toggle (shared by details + filter) ── */
+    .option-toggles {
+      display: flex; flex-direction: row; gap: 4px; margin-top: 6px;
+    }
+
     .section-toggle {
       display: flex; align-items: center; gap: 5px;
       background: none; border: none; cursor: pointer;
       font-size: 0.78rem; font-family: inherit; color: var(--muted);
       padding: 7px 0; transition: color 0.15s; width: 100%;
     }
+
+    .option-toggles .section-toggle { width: auto; padding: 6px 10px; }
 
     .section-toggle:hover { color: var(--text); }
     .section-toggle .chevron { transition: transform 0.22s ease; flex-shrink: 0; }
@@ -361,7 +393,7 @@
     /* ── Top todo card ── */
     #top-todo-card {
       background: var(--accent);
-      color: #fff;
+      color: var(--on-accent);
       border-radius: 18px;
       padding: 20px 22px 18px;
       margin-bottom: 20px;
@@ -414,15 +446,76 @@
     .top-todo-chip {
       font-size: 0.72rem; font-weight: 600;
       padding: 3px 9px; border-radius: 20px;
-      background: rgba(255,255,255,0.15);
-      color: rgba(255,255,255,0.9);
+      background: rgba(128,128,128,0.18);
+      color: var(--on-accent);
+      opacity: 0.85;
       letter-spacing: 0.02em;
     }
 
-    .top-todo-chip.urgent { background: rgba(255,80,80,0.35); }
+    .top-todo-chip.urgent { background: rgba(255,80,80,0.3); opacity: 1; }
+
+    /* ── Theme toggle ── */
+    .theme-toggle {
+      position: fixed; top: 16px; right: 16px; z-index: 100;
+      display: flex; align-items: center; gap: 7px;
+    }
+
+    .theme-icon {
+      color: var(--muted); transition: color 0.2s;
+      display: flex; align-items: center;
+    }
+
+    .theme-switch {
+      position: relative; display: inline-block; width: 36px; height: 20px; cursor: pointer;
+    }
+
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+
+    .theme-slider {
+      position: absolute; inset: 0;
+      background: var(--border); border-radius: 20px;
+      transition: background 0.22s;
+    }
+
+    .theme-slider::before {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      left: 3px; top: 3px;
+      background: var(--muted);
+      transition: transform 0.22s, background 0.22s;
+    }
+
+    .theme-switch input:checked + .theme-slider { background: #3a3a38; }
+    .theme-switch input:checked + .theme-slider::before {
+      transform: translateX(16px);
+      background: #f0f0ee;
+    }
+
+    .theme-toggle .sun { color: var(--muted); }
+    .theme-toggle .moon { color: var(--muted); }
   </style>
 </head>
 <body>
+  <div class="theme-toggle">
+    <span class="theme-icon sun">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+    </span>
+    <label class="theme-switch" aria-label="Toggle dark mode">
+      <input type="checkbox" id="theme-checkbox">
+      <span class="theme-slider"></span>
+    </label>
+    <span class="theme-icon moon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </span>
+  </div>
+
   <div class="container">
     <div class="header">
       <h1>You've got this.</h1>
@@ -441,28 +534,30 @@
         <input type="text" id="task-input" placeholder="What would you like to get done today?" maxlength="200" autocomplete="off">
         <button id="add-btn" disabled>Add</button>
       </div>
-      <button class="section-toggle" id="priority-toggle" type="button">
-        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        Priority
-      </button>
+      <div class="option-toggles">
+        <button class="section-toggle" id="priority-toggle" type="button">
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Priority
+        </button>
+        <button class="section-toggle" id="category-toggle" type="button">
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Category
+        </button>
+        <button class="section-toggle" id="deadline-toggle" type="button">
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Deadline
+        </button>
+      </div>
       <div class="collapsible" id="priority-extras">
         <div class="collapsible-inner">
           <div class="pill-group" id="priority-picker"></div>
         </div>
       </div>
-      <button class="section-toggle" id="category-toggle" type="button">
-        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        Category
-      </button>
       <div class="collapsible" id="category-extras">
         <div class="collapsible-inner">
           <div class="pill-group" id="category-picker"></div>
         </div>
       </div>
-      <button class="section-toggle" id="deadline-toggle" type="button">
-        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        Deadline
-      </button>
       <div class="collapsible" id="deadline-extras">
         <div class="collapsible-inner">
           <div class="schedule-inputs">
@@ -490,6 +585,25 @@
   </div>
 
   <script>
+    // ── Theme ─────────────────────────────────────────────────────────────────
+
+    const themeCheckbox = document.getElementById('theme-checkbox');
+    const THEME_KEY     = 'cc_theme';
+
+    function applyTheme(dark) {
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      themeCheckbox.checked = dark;
+    }
+
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    themeCheckbox.addEventListener('change', () => {
+      const dark = themeCheckbox.checked;
+      localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+      applyTheme(dark);
+    });
+
     const input         = document.getElementById('task-input');
     const addBtn        = document.getElementById('add-btn');
     const list          = document.getElementById('todo-list');
