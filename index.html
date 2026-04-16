@@ -377,6 +377,51 @@
     }
     [data-theme="dark"] .repeat-chip { background: #1e1a3a; color: #a5b4fc; }
 
+    /* ── Overload warning modal ── */
+    .overload-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeIn 0.18s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .overload-card {
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px; width: 100%; max-width: 480px;
+      max-height: 80dvh; overflow-y: auto;
+      animation: slideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .overload-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 0 auto 20px;
+    }
+    .overload-title {
+      font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px;
+    }
+    .overload-subtitle {
+      font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; line-height: 1.5;
+    }
+    .overload-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+    .overload-item {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; line-height: 1.4;
+    }
+    .overload-item-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .overload-actions { display: flex; gap: 8px; }
+    .overload-btn {
+      flex: 1; padding: 12px; font-size: 0.9rem; font-weight: 600;
+      border-radius: 12px; border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--text);
+      cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+    }
+    .overload-btn.primary {
+      background: var(--accent); color: var(--on-accent); border-color: transparent;
+    }
+    .overload-btn:active { opacity: 0.75; }
+
     /* ── Action buttons ── */
     .item-actions { display: flex; gap: 2px; flex-shrink: 0; margin-top: 1px; }
 
@@ -1626,6 +1671,64 @@
       });
     }
 
+    // ── Overload warning ─────────────────────────────────────────────────────
+
+    function showOverloadWarning(conflicts, onConfirm) {
+      const overlay = document.createElement('div');
+      overlay.className = 'overload-overlay';
+
+      const card = document.createElement('div');
+      card.className = 'overload-card';
+
+      const handle = document.createElement('div');
+      handle.className = 'overload-handle';
+
+      const title = document.createElement('div');
+      title.className = 'overload-title';
+      title.textContent = 'That\'s a lot for one stretch.';
+
+      const sub = document.createElement('div');
+      sub.className = 'overload-subtitle';
+      sub.textContent = `You already have ${conflicts.length} task${conflicts.length !== 1 ? 's' : ''} within 12 hours of that time. Still want to add, or would you rather adjust the others?`;
+
+      const itemList = document.createElement('div');
+      itemList.className = 'overload-list';
+      conflicts.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'overload-item';
+        const name = document.createElement('div');
+        name.textContent = t.text;
+        item.appendChild(name);
+        const due = describeDue(t.dueDate, t.dueTime);
+        if (due) {
+          const meta = document.createElement('div');
+          meta.className = 'overload-item-meta';
+          meta.textContent = due.label;
+          item.appendChild(meta);
+        }
+        itemList.appendChild(item);
+      });
+
+      const actions = document.createElement('div');
+      actions.className = 'overload-actions';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'overload-btn';
+      cancelBtn.textContent = 'Let me reconsider';
+      cancelBtn.addEventListener('click', () => overlay.remove());
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'overload-btn primary';
+      confirmBtn.textContent = 'Add anyway';
+      confirmBtn.addEventListener('click', () => { overlay.remove(); onConfirm(); });
+
+      actions.append(cancelBtn, confirmBtn);
+      card.append(handle, title, sub, itemList, actions);
+      overlay.appendChild(card);
+      overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+      document.body.appendChild(overlay);
+    }
+
     // ── Form events ───────────────────────────────────────────────────────────
 
     input.addEventListener('input', () => { addBtn.disabled = input.value.trim() === ''; });
@@ -1634,23 +1737,37 @@
       const text = input.value.trim();
       if (!text) return;
       const dueDate = dueDateEl.value || null;
+      const dueTime = dueDate ? (dueTimeEl.value || '10:00') : null;
       const repeat  = selectedRepeat !== 'none' ? selectedRepeat : null;
-      const id = Date.now();
-      todos.unshift({
-        id, text, done: false, dueDate,
-        dueTime: dueDate ? (dueTimeEl.value || '10:00') : null,
-        categories: selectedCategories.slice(), priority: selectedPriority,
-        repeat, repeatInterval: selectedRepeatInterval, repeatUnit: selectedRepeatUnit,
-        repeatDays: selectedRepeatDays.slice(), repeatCount: 0,
-      });
-      animateInId = id; save(todos); render(); animateInId = null;
 
-      input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
-      selectedCategories = []; selectedPriority = 'medium';
-      selectedRepeat = 'none'; selectedRepeatDays = [];
-      refreshCategoryPicker(); refreshPriorityPicker(); refreshRepeatPicker();
-      collapseDetails();
-      addBtn.disabled = true; input.focus();
+      function doAdd() {
+        const id = Date.now();
+        todos.unshift({
+          id, text, done: false, dueDate, dueTime,
+          categories: selectedCategories.slice(), priority: selectedPriority,
+          repeat, repeatInterval: selectedRepeatInterval, repeatUnit: selectedRepeatUnit,
+          repeatDays: selectedRepeatDays.slice(), repeatCount: 0,
+        });
+        animateInId = id; save(todos); render(); animateInId = null;
+        input.value = ''; dueDateEl.value = ''; dueTimeEl.value = '';
+        selectedCategories = []; selectedPriority = 'medium';
+        selectedRepeat = 'none'; selectedRepeatDays = [];
+        refreshCategoryPicker(); refreshPriorityPicker(); refreshRepeatPicker();
+        collapseDetails();
+        addBtn.disabled = true; input.focus();
+      }
+
+      if (dueDate) {
+        const newDt = new Date(dueDate + 'T' + (dueTime || '10:00')).getTime();
+        const conflicts = todos.filter(t => {
+          if (t.done || !t.dueDate) return false;
+          const tDt = new Date(t.dueDate + 'T' + (t.dueTime || '10:00')).getTime();
+          return Math.abs(tDt - newDt) <= 12 * 60 * 60 * 1000;
+        });
+        if (conflicts.length >= 4) { showOverloadWarning(conflicts, doAdd); return; }
+      }
+
+      doAdd();
     }
 
     function collapseDetails() {
