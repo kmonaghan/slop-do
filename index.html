@@ -466,6 +466,17 @@
     .empty strong { display: block; font-size: 1.15rem; color: var(--text); margin-bottom: 6px; font-weight: 600; }
 
     /* ── Top todo card ── */
+    @keyframes cardExit {
+      from { opacity: 1; transform: scale(1)    translateY(0); }
+      to   { opacity: 0; transform: scale(0.97) translateY(8px); }
+    }
+    @keyframes cardEnter {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #top-todo-card.card-exit  { animation: cardExit  0.3s ease forwards; }
+    #top-todo-card.card-enter { animation: cardEnter 0.3s ease forwards; }
+
     #top-todo-card {
       background: var(--accent);
       color: var(--on-accent);
@@ -528,6 +539,19 @@
     }
 
     .top-todo-chip.urgent { background: rgba(255,80,80,0.3); opacity: 1; }
+
+    .top-complete-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 14px; padding: 8px 16px;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.28);
+      border-radius: 20px; color: var(--on-accent);
+      font-size: 0.82rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; position: relative; z-index: 1;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .top-complete-btn:hover  { background: rgba(255,255,255,0.25); }
+    .top-complete-btn:active { transform: scale(0.95); }
 
     /* ── Theme toggle ── */
     .theme-toggle {
@@ -602,6 +626,7 @@
       <div class="top-todo-title" id="top-todo-title">Do This Now</div>
       <div class="top-todo-text" id="top-todo-text"></div>
       <div class="top-todo-meta" id="top-todo-meta"></div>
+      <div id="top-todo-actions"></div>
     </div>
 
     <div class="input-area">
@@ -1152,13 +1177,13 @@
     // ── Top todo card ─────────────────────────────────────────────────────────
 
     const FOCUS_TITLES = [
+      'Start strong.',
       'You\'ve got this one.',
-      'Start here — you\'re ready.',
-      'One step at a time.',
-      'This one\'s yours to take.',
-      'You\'re closer than you think.',
-      'A little progress goes a long way.',
-      'Begin here — you can do it.',
+      'Make it happen.',
+      'This is your moment.',
+      'One thing at a time.',
+      'Lead with this.',
+      'Clear the path.',
     ];
 
     function renderTopTodo(active) {
@@ -1202,6 +1227,14 @@
         chip.textContent = repeatLabel(todo);
         topTodoMeta.appendChild(chip);
       }
+
+      const actionsEl = document.getElementById('top-todo-actions');
+      actionsEl.innerHTML = '';
+      const completeBtn = document.createElement('button');
+      completeBtn.className = 'top-complete-btn';
+      completeBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Done`;
+      completeBtn.addEventListener('click', () => completeFromCard(todo.id));
+      actionsEl.appendChild(completeBtn);
 
       topTodoCard.style.display = '';
     }
@@ -1466,41 +1499,73 @@
       return wrap;
     }
 
+    // ── Completion logic ──────────────────────────────────────────────────────
+
+    function applyCompletion(id) {
+      const todo = todos.find(t => t.id === id);
+      if (!todo) return;
+      if (todo.repeat && !todo.done) {
+        const nextDate = calcNextDate(todo.repeat, todo.repeatInterval || 2, todo.repeatUnit || 'weeks', todo.repeatDays || []);
+        const newCount = (todo.repeatCount || 0) + 1;
+        todos = todos.map(t => t.id === id ? { ...t, dueDate: nextDate, repeatCount: newCount } : t);
+        const existingCopy = todos.find(t => t.repeatGroupId === id);
+        if (existingCopy) {
+          todos = todos.map(t => t.repeatGroupId === id
+            ? { ...t, completionCount: (t.completionCount || 1) + 1, completedAt: Date.now() } : t);
+        } else {
+          todos.push({ ...todo, id: Date.now() + Math.floor(Math.random() * 1000),
+            done: true, repeatGroupId: id, completionCount: 1, completedAt: Date.now(), repeat: null });
+        }
+      } else {
+        todos = todos.map(t => t.id === id
+          ? { ...t, done: !t.done, completedAt: t.done ? null : Date.now() } : t);
+      }
+    }
+
+    function launchConfetti(sourceEl) {
+      const rect = sourceEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 3;
+      const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7','#ec4899','#06b6d4'];
+      for (let i = 0; i < 30; i++) {
+        const el = document.createElement('div');
+        const size = 5 + Math.random() * 7;
+        el.style.cssText = `position:fixed;z-index:9999;pointer-events:none;width:${size}px;height:${size}px;background:${colors[i%colors.length]};border-radius:${Math.random()>0.4?'50%':'3px'};left:${cx}px;top:${cy}px;`;
+        document.body.appendChild(el);
+        const angle = (Math.PI * 2 * i / 30) + (Math.random() - 0.5) * 0.8;
+        const speed = 80 + Math.random() * 140;
+        const dx = Math.cos(angle) * speed;
+        const dy = Math.sin(angle) * speed - 70;
+        el.animate([
+          { transform: 'translate(-50%,-50%) rotate(0deg) scale(1)', opacity: 1 },
+          { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy + 110}px)) rotate(${360+Math.random()*360}deg) scale(0)`, opacity: 0 },
+        ], { duration: 750, easing: 'cubic-bezier(0.25,0.46,0.45,0.94)', fill: 'forwards' }).onfinish = () => el.remove();
+      }
+    }
+
+    function completeFromCard(id) {
+      launchConfetti(topTodoCard);
+      topTodoCard.classList.add('card-exit');
+      setTimeout(() => {
+        applyCompletion(id);
+        save(todos);
+        topTodoCard.classList.remove('card-exit');
+        render();
+        if (topTodoCard.style.display !== 'none') {
+          topTodoCard.classList.add('card-enter');
+          topTodoCard.addEventListener('animationend', () => topTodoCard.classList.remove('card-enter'), { once: true });
+        }
+      }, 300);
+    }
+
     // ── Animated exit ─────────────────────────────────────────────────────────
 
     function animateOut(id, action) {
       const item = document.querySelector(`.todo-item[data-id="${id}"]`);
       const wrap = item ? item.closest('.item-wrap') : null;
       const doIt = () => {
-        if (action === 'delete') {
-          todos = todos.filter(t => t.id !== id);
-        } else {
-          const todo = todos.find(t => t.id === id);
-          if (todo && !todo.done && todo.repeat) {
-            const nextDate = calcNextDate(todo.repeat, todo.repeatInterval || 2, todo.repeatUnit || 'weeks', todo.repeatDays || []);
-            const newCount = (todo.repeatCount || 0) + 1;
-            todos = todos.map(t => t.id === id
-              ? { ...t, dueDate: nextDate, repeatCount: newCount } : t);
-            const existingCopy = todos.find(t => t.repeatGroupId === id);
-            if (existingCopy) {
-              todos = todos.map(t => t.repeatGroupId === id
-                ? { ...t, completionCount: (t.completionCount || 1) + 1, completedAt: Date.now() } : t);
-            } else {
-              todos.push({
-                ...todo,
-                id: Date.now() + Math.floor(Math.random() * 1000),
-                done: true,
-                repeatGroupId: id,
-                completionCount: 1,
-                completedAt: Date.now(),
-                repeat: null,
-              });
-            }
-          } else {
-            todos = todos.map(t => t.id === id
-              ? { ...t, done: !t.done, completedAt: t.done ? null : Date.now() } : t);
-          }
-        }
+        if (action === 'delete') todos = todos.filter(t => t.id !== id);
+        else applyCompletion(id);
         save(todos);
         render();
       };
