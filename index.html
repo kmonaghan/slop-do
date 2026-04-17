@@ -1285,6 +1285,9 @@
         done   = done.filter(t => (t.priority || 'medium') === filterState.filterPriority);
       }
 
+      const REPEAT_FREQ = { daily: 0, weekdays: 1, weekly: 2, fortnightly: 3, monthly: 4, custom: 5 };
+      function repeatFreq(t) { return t.repeat ? (REPEAT_FREQ[t.repeat] ?? 5) : 99; }
+
       function cmp(a, b) {
         const pa = PRIORITY_CONFIG[a.priority || 'medium'].weight;
         const pb = PRIORITY_CONFIG[b.priority || 'medium'].weight;
@@ -1293,7 +1296,7 @@
 
         if (filterState.sortBy === 'priority') {
           if (pa !== pb) return pa - pb;
-          if (da && db) return da - db;
+          if (da && db) { const d = da - db; return d !== 0 ? d : repeatFreq(a) - repeatFreq(b); }
           return da ? -1 : db ? 1 : 0;
         }
 
@@ -1304,12 +1307,17 @@
           if (ca && !cb) return -1;
           if (ca !== cb) return ca.localeCompare(cb);
           if (pa !== pb) return pa - pb;
-          if (da && db) return da - db;
+          if (da && db) { const d = da - db; return d !== 0 ? d : repeatFreq(a) - repeatFreq(b); }
           return 0;
         }
 
         // date (default)
-        if (da && db) { const d = da - db; return d !== 0 ? d : pa - pb; }
+        if (da && db) {
+          const d = da - db;
+          if (d !== 0) return d;
+          const rf = repeatFreq(a) - repeatFreq(b);
+          return rf !== 0 ? rf : pa - pb;
+        }
         if (da) return -1; if (db) return 1;
         return pa - pb;
       }
