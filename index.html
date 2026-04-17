@@ -1294,14 +1294,13 @@
 
       // For repeating tasks with no explicit due date, assign a virtual sort date
       // based on frequency so they interleave correctly with dated tasks.
-      const REPEAT_DAYS = { daily: 1, weekdays: 1, weekly: 7, fortnightly: 14, monthly: 30 };
       function effectiveDate(t) {
         if (t.dueDate) return new Date(t.dueDate + 'T' + (t.dueTime || '10:00'));
         if (!t.repeat) return null;
-        const days = t.repeat === 'custom'
-          ? (t.repeatInterval || 2) * (t.repeatUnit === 'months' ? 30 : t.repeatUnit === 'weeks' ? 7 : 1)
-          : (REPEAT_DAYS[t.repeat] ?? 7);
-        const d = new Date(); d.setHours(10, 0, 0, 0); d.setDate(d.getDate() + days);
+        // Repeating tasks with no explicit due date haven't been completed yet —
+        // treat as due today so they sort before tasks already completed (which
+        // have a future dueDate set). Frequency breaks ties between undated repeats.
+        const d = new Date(); d.setHours(10, 0, 0, 0);
         return d;
       }
 
