@@ -643,6 +643,56 @@
 
     .theme-toggle .sun { color: var(--muted); }
     .theme-toggle .moon { color: var(--muted); }
+
+    /* ── Shake overlay ── */
+    .shake-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 300; display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeIn 0.18s ease;
+    }
+    .shake-card {
+      background: var(--surface); border-radius: 24px 24px 0 0;
+      padding: 28px 24px 44px; width: 100%; max-width: 480px;
+      animation: slideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .shake-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 0 auto 24px;
+    }
+    .shake-motivation {
+      font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent); opacity: 0.6;
+      margin-bottom: 12px;
+    }
+    .shake-task-text {
+      font-size: 1.45rem; font-weight: 700; line-height: 1.25;
+      letter-spacing: -0.03em; margin-bottom: 28px;
+      word-break: break-word; color: var(--text);
+    }
+    .shake-actions { display: flex; flex-direction: column; gap: 10px; }
+    .shake-btn-done {
+      padding: 15px; font-size: 1rem; font-weight: 700; font-family: inherit;
+      border-radius: 14px; border: none;
+      background: var(--accent); color: var(--on-accent);
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .shake-btn-later {
+      padding: 14px; font-size: 0.95rem; font-weight: 600; font-family: inherit;
+      border-radius: 14px; border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--muted);
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .shake-btn-done:active { opacity: 0.75; }
+    .shake-btn-later:hover { color: var(--text); border-color: #aaa; }
+    .shake-enable-banner {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 10px 14px; margin-bottom: 10px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); cursor: pointer;
+      font-size: 0.82rem; color: var(--muted); font-family: inherit;
+      text-align: left; transition: border-color 0.15s, color 0.15s;
+    }
+    .shake-enable-banner:hover { border-color: var(--accent); color: var(--text); }
   </style>
 </head>
 <body>
@@ -2105,12 +2155,197 @@
       document.body.appendChild(resetBtn);
     }
 
+    // ── Shake feature ─────────────────────────────────────────────────────────
+
+    const SHAKE_SEEN_KEY = 'cc_shake_seen';
+
+    const SHAKE_MESSAGES = [
+      "You've got what it takes.",
+      "One step at a time.",
+      "Make it count.",
+      "Now is always the right time.",
+      "Small actions, big momentum.",
+      "This is the one. Let's go.",
+      "Progress starts here.",
+      "You're closer than you think.",
+      "Nothing stops you today.",
+      "Every task done is a win.",
+      "Do it for future-you.",
+      "This is your moment.",
+      "Momentum builds with every action.",
+      "You're on a roll — keep going.",
+      "Chip away. It all adds up.",
+    ];
+
+    function getShakeMessage() {
+      let seen;
+      try { seen = JSON.parse(localStorage.getItem(SHAKE_SEEN_KEY)) || []; }
+      catch { seen = []; }
+      let available = SHAKE_MESSAGES.map((_, i) => i).filter(i => !seen.includes(i));
+      if (available.length === 0) { seen = []; available = SHAKE_MESSAGES.map((_, i) => i); }
+      const idx = available[Math.floor(Math.random() * available.length)];
+      seen.push(idx);
+      localStorage.setItem(SHAKE_SEEN_KEY, JSON.stringify(seen));
+      return SHAKE_MESSAGES[idx];
+    }
+
+    let shakeOverlayEl = null;
+    let currentShakeTaskId = null;
+
+    function closeShakeOverlay() {
+      if (shakeOverlayEl) { shakeOverlayEl.remove(); shakeOverlayEl = null; }
+      currentShakeTaskId = null;
+    }
+
+    function showShakeOverlay(task) {
+      if (shakeOverlayEl) {
+        const taskEl = shakeOverlayEl.querySelector('.shake-task-text');
+        const msgEl  = shakeOverlayEl.querySelector('.shake-motivation');
+        currentShakeTaskId = task.id;
+        taskEl.animate([{opacity:1},{opacity:0}], {duration:100, easing:'ease', fill:'forwards'}).onfinish = () => {
+          taskEl.textContent = task.text;
+          if (msgEl) msgEl.textContent = getShakeMessage();
+          taskEl.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],
+            {duration:220, easing:'ease', fill:'forwards'});
+        };
+        return;
+      }
+
+      currentShakeTaskId = task.id;
+      const overlay = document.createElement('div');
+      overlay.className = 'shake-overlay';
+      shakeOverlayEl = overlay;
+
+      const card   = document.createElement('div');  card.className = 'shake-card';
+      const handle = document.createElement('div');  handle.className = 'shake-handle';
+
+      const msgEl = document.createElement('div');
+      msgEl.className = 'shake-motivation';
+      msgEl.textContent = getShakeMessage();
+
+      const taskEl = document.createElement('div');
+      taskEl.className = 'shake-task-text';
+      taskEl.textContent = task.text;
+
+      const actions = document.createElement('div');
+      actions.className = 'shake-actions';
+
+      const doneBtn = document.createElement('button');
+      doneBtn.className = 'shake-btn-done';
+      doneBtn.textContent = 'Done';
+      doneBtn.addEventListener('click', () => {
+        const id = currentShakeTaskId;
+        launchConfetti(doneBtn);
+        closeShakeOverlay();
+        applyCompletion(id);
+        save(todos);
+        render();
+      });
+
+      const laterBtn = document.createElement('button');
+      laterBtn.className = 'shake-btn-later';
+      laterBtn.textContent = 'Maybe later';
+      laterBtn.addEventListener('click', closeShakeOverlay);
+
+      actions.append(doneBtn, laterBtn);
+      card.append(handle, msgEl, taskEl, actions);
+      overlay.appendChild(card);
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeShakeOverlay(); });
+      document.body.appendChild(overlay);
+    }
+
+    function showShakeEmpty() {
+      if (shakeOverlayEl) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'shake-overlay';
+      shakeOverlayEl = overlay;
+
+      const card   = document.createElement('div');  card.className = 'shake-card';
+      const handle = document.createElement('div');  handle.className = 'shake-handle';
+
+      const msgEl = document.createElement('div');
+      msgEl.className = 'shake-motivation';
+      msgEl.textContent = 'Look at you go!';
+
+      const taskEl = document.createElement('div');
+      taskEl.className = 'shake-task-text';
+      taskEl.textContent = "Nothing left — you're all done!";
+
+      const btn = document.createElement('button');
+      btn.className = 'shake-btn-later';
+      btn.textContent = 'Thanks!';
+      btn.addEventListener('click', closeShakeOverlay);
+
+      card.append(handle, msgEl, taskEl, btn);
+      overlay.appendChild(card);
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeShakeOverlay(); });
+      document.body.appendChild(overlay);
+    }
+
+    function handleShake() {
+      const active = todos.filter(t => !t.done);
+      if (active.length === 0) { showShakeEmpty(); return; }
+      const exclude = shakeOverlayEl ? currentShakeTaskId : null;
+      const pool = active.filter(t => t.id !== exclude);
+      const task = (pool.length > 0 ? pool : active)[Math.floor(Math.random() * (pool.length > 0 ? pool.length : active.length))];
+      showShakeOverlay(task);
+    }
+
+    // ── Shake detection ───────────────────────────────────────────────────────
+
+    let lastShakeTime = 0;
+    const SHAKE_THRESHOLD = 15;
+    const SHAKE_COOLDOWN  = 1200;
+    let lastAx = 0, lastAy = 0, lastAz = 0;
+
+    function onMotion(e) {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc || acc.x == null) return;
+      const dx = Math.abs(acc.x - lastAx);
+      const dy = Math.abs(acc.y - lastAy);
+      const dz = Math.abs(acc.z - lastAz);
+      lastAx = acc.x; lastAy = acc.y; lastAz = acc.z;
+      if (dx + dy + dz > SHAKE_THRESHOLD && Date.now() - lastShakeTime > SHAKE_COOLDOWN) {
+        lastShakeTime = Date.now();
+        handleShake();
+      }
+    }
+
+    function startShakeDetection() {
+      window.addEventListener('devicemotion', onMotion, { passive: true });
+    }
+
+    function showShakeEnableBanner() {
+      const banner = document.createElement('button');
+      banner.className = 'shake-enable-banner';
+      banner.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Tap to enable shake for a random task`;
+      banner.addEventListener('click', async () => {
+        try {
+          const perm = await DeviceMotionEvent.requestPermission();
+          if (perm === 'granted') startShakeDetection();
+        } catch (e) { /* denied or unsupported */ }
+        banner.remove();
+      });
+      const inputArea = document.querySelector('.input-area');
+      if (inputArea) inputArea.after(banner);
+    }
+
+    function initShake() {
+      if (typeof DeviceMotionEvent === 'undefined') return;
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        showShakeEnableBanner();
+      } else {
+        startShakeDetection();
+      }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
 
     refreshPriorityPicker();
     refreshCategoryPicker();
     refreshRepeatPicker();
     render();
+    initShake();
   </script>
 </body>
 </html>
