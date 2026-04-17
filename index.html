@@ -511,6 +511,22 @@
       text-transform: uppercase; color: var(--muted); padding: 8px 4px 4px;
     }
 
+    .accomplished-toggle {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 4px 4px; cursor: pointer;
+      background: none; border: none; font-family: inherit;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      width: 100%; text-align: left; transition: color 0.15s;
+    }
+    .accomplished-toggle:hover { color: var(--text); }
+    .accomplished-toggle .chevron { transition: transform 0.22s ease; flex-shrink: 0; }
+    .accomplished-toggle.open .chevron { transform: rotate(180deg); }
+    .accomplished-subtitle {
+      font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em;
+      text-transform: none; opacity: 0.8;
+    }
+
     /* ── Empty states ── */
     .empty { text-align: center; color: var(--muted); font-size: 0.95rem; padding: 56px 0; line-height: 1.6; }
     .empty strong { display: block; font-size: 1.15rem; color: var(--text); margin-bottom: 6px; font-weight: 600; }
@@ -1482,6 +1498,15 @@
 
     let animateInId = null;
     const activeEdits = {};
+    let doneCollapsed = true;
+
+    function accomplishedSubtitle(n) {
+      if (n === 1) return '· 1 task crushed today.';
+      if (n <= 3)  return `· ${n} done. Keep it up!`;
+      if (n <= 6)  return `· ${n} done. You're on a roll!`;
+      if (n <= 9)  return `· ${n} done. Outstanding work!`;
+      return `· ${n} done. Absolutely unstoppable!`;
+    }
 
     function render() {
       renderFilterBar();
@@ -1510,13 +1535,12 @@
       active.forEach(t => list.appendChild(makeWrap(t)));
 
       if (done.length > 0) {
-        if (active.length > 0) {
-          const div = document.createElement('div');
-          div.className = 'section-label';
-          div.textContent = 'Accomplished';
-          list.appendChild(div);
-        }
-        done.forEach(t => list.appendChild(makeWrap(t)));
+        const toggle = document.createElement('button');
+        toggle.className = 'accomplished-toggle' + (doneCollapsed ? '' : ' open');
+        toggle.innerHTML = `<svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span>Accomplished</span><span class="accomplished-subtitle">${accomplishedSubtitle(done.length)}</span>`;
+        toggle.addEventListener('click', () => { doneCollapsed = !doneCollapsed; render(); });
+        list.appendChild(toggle);
+        if (!doneCollapsed) done.forEach(t => list.appendChild(makeWrap(t)));
       }
     }
 
