@@ -1288,11 +1288,24 @@
       const REPEAT_FREQ = { daily: 0, weekdays: 1, weekly: 2, fortnightly: 3, monthly: 4, custom: 5 };
       function repeatFreq(t) { return t.repeat ? (REPEAT_FREQ[t.repeat] ?? 5) : 99; }
 
+      // For repeating tasks with no explicit due date, assign a virtual sort date
+      // based on frequency so they interleave correctly with dated tasks.
+      const REPEAT_DAYS = { daily: 1, weekdays: 1, weekly: 7, fortnightly: 14, monthly: 30 };
+      function effectiveDate(t) {
+        if (t.dueDate) return new Date(t.dueDate + 'T' + (t.dueTime || '10:00'));
+        if (!t.repeat) return null;
+        const days = t.repeat === 'custom'
+          ? (t.repeatInterval || 2) * (t.repeatUnit === 'months' ? 30 : t.repeatUnit === 'weeks' ? 7 : 1)
+          : (REPEAT_DAYS[t.repeat] ?? 7);
+        const d = new Date(); d.setHours(10, 0, 0, 0); d.setDate(d.getDate() + days);
+        return d;
+      }
+
       function cmp(a, b) {
         const pa = PRIORITY_CONFIG[a.priority || 'medium'].weight;
         const pb = PRIORITY_CONFIG[b.priority || 'medium'].weight;
-        const da = a.dueDate ? new Date(a.dueDate + 'T' + (a.dueTime || '10:00')) : null;
-        const db = b.dueDate ? new Date(b.dueDate + 'T' + (b.dueTime || '10:00')) : null;
+        const da = effectiveDate(a);
+        const db = effectiveDate(b);
 
         if (filterState.sortBy === 'priority') {
           if (pa !== pb) return pa - pb;
