@@ -911,6 +911,10 @@
     let selectedRepeatUnit     = 'weeks';
     let selectedRepeatDays     = [];
 
+    function localYMD(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
     function calcNextDate(repeat, interval, unit, days) {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
@@ -932,7 +936,7 @@
         else if (unit === 'months') d.setMonth(d.getMonth() + interval);
         else                        d.setDate(d.getDate() + interval);
       }
-      return d.toISOString().slice(0, 10);
+      return localYMD(d);
     }
 
     // ── Priority ──────────────────────────────────────────────────────────────
@@ -2147,7 +2151,7 @@
     // ── Due date quick-picks ─────────────────────────────────────────────────
 
     function toYMD(d) {
-      return d.toISOString().slice(0, 10);
+      return localYMD(d);
     }
 
     const QUICK_PICKS = [
